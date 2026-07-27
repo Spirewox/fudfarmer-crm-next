@@ -369,7 +369,43 @@ export function useAnalyticsOverview(filters?: {
       const qs = params.toString();
       const path = qs ? `analytics/overview?${qs}` : 'analytics/overview';
       const res = await axiosGet(path, true) as ApiResponse<AnalyticsOverviewData>;
-      return res.data;
+      const data = res.data ?? EMPTY_ANALYTICS_OVERVIEW;
+      return {
+        ...EMPTY_ANALYTICS_OVERVIEW,
+        ...data,
+        sales: {
+          ...EMPTY_ANALYTICS_OVERVIEW.sales,
+          ...data.sales,
+          weeklyTrend: data.sales?.weeklyTrend ?? [],
+          dailyTrend: data.sales?.dailyTrend ?? [],
+          aovWeeklyTrend: data.sales?.aovWeeklyTrend ?? [],
+        },
+        products: { ...EMPTY_ANALYTICS_OVERVIEW.products, ...data.products },
+        customers: {
+          ...EMPTY_ANALYTICS_OVERVIEW.customers,
+          ...data.customers,
+          acquisitionWeeklyTrend: data.customers?.acquisitionWeeklyTrend ?? [],
+          clvDistribution: (data.customers?.clvDistribution ?? []).map((b) => ({
+            ...b,
+            revenue: b.revenue ?? 0,
+          })),
+          segmentData: (data.customers?.segmentData ?? []).map((s) => ({
+            name: s.name,
+            customers: s.customers ?? s.value ?? 0,
+            revenue: s.revenue ?? 0,
+            value: s.value ?? s.customers ?? 0,
+          })),
+          topSpenders: (data.customers?.topSpenders ?? []).map((t) => ({
+            ...t,
+            totalOrders: t.totalOrders ?? 0,
+          })),
+        },
+        credit: {
+          ...EMPTY_ANALYTICS_OVERVIEW.credit,
+          ...data.credit,
+          collectionWeeklyTrend: data.credit?.collectionWeeklyTrend ?? [],
+        },
+      } satisfies AnalyticsOverviewData;
     },
   });
 }

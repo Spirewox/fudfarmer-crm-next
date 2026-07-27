@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAnalyticsOverview } from '@/hooks/use-queries';
 import { useHubScopeFilter } from '@/hooks/use-hub-scope';
@@ -15,10 +15,10 @@ import {
 } from 'recharts';
 import {
   TrendingUp, BarChart3, Users, Package, CreditCard,
-  ArrowUpRight, ArrowDownRight, Minus, ShoppingCart,
-  Truck, AlertTriangle, ChevronRight,
+  ArrowUpRight, ArrowDownRight, Minus,
+  AlertTriangle, ChevronRight,
 } from 'lucide-react';
-import { PaymentMode, PaymentType } from '@/types';
+import { PaymentMode } from '@/types';
 import { PRODUCT_CATEGORY_COLORS } from '@/lib/product-categories';
 
 const NAIRA = '\u20A6';
@@ -36,16 +36,42 @@ const CAT_COLORS = PRODUCT_CATEGORY_COLORS;
 
 type AnalyticsTab = 'sales' | 'products' | 'customers' | 'credit';
 
-function getMonthLabel(dateStr: string): string {
-  const s = String(dateStr ?? '').trim();
-  const d = /^\d{4}-\d{2}/.test(s)
-    ? new Date(`${s.slice(0, 7)}-01T00:00:00.000Z`)
-    : new Date(s);
-  return d.toLocaleDateString(undefined, {
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
+/* Reusable per-card segmented filter (secondary — operates on parent-scoped payload) */
+function Seg({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: [string, string][] }) {
+  return (
+    <div className="flex items-center gap-0.5 bg-muted/40 p-0.5 rounded-lg border shrink-0">
+      {options.map(([key, label]) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onChange(key)}
+          className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${value === key ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CardHead({
+  title,
+  subtitle,
+  control,
+}: {
+  title: React.ReactNode;
+  subtitle?: string;
+  control?: React.ReactNode;
+}) {
+  return (
+    <div className="p-5 border-b flex items-start justify-between gap-3">
+      <div>
+        <h3 className="text-sm font-bold">{title}</h3>
+        {subtitle && <p className="text-[11px] text-muted-foreground">{subtitle}</p>}
+      </div>
+      {control ? <div className="flex items-center gap-2 shrink-0">{control}</div> : null}
+    </div>
+  );
 }
 
 export default function AnalyticsPage() {
@@ -67,7 +93,6 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 max-w-[1400px] mx-auto">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
           <BarChart3 className="text-primary" /> Analytics
@@ -104,29 +129,28 @@ export default function AnalyticsPage() {
         </div>
       ) : (
         <>
-      {/* Tab Bar */}
-      <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border overflow-x-auto">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              tab === t.key
-                ? 'bg-background shadow-sm text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <t.icon size={14} />
-            {t.label}
-          </button>
-        ))}
-      </div>
+          <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border overflow-x-auto">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                  tab === t.key
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <t.icon size={14} />
+                {t.label}
+              </button>
+            ))}
+          </div>
 
-      {/* Tab Content */}
-      {tab === 'sales' && <SalesAnalysis data={overview.sales} />}
-      {tab === 'products' && <ProductPerformance data={overview.products} />}
-      {tab === 'customers' && <CustomerInsights data={overview.customers} router={router} />}
-      {tab === 'credit' && <CreditRisk data={overview.credit} />}
+          {tab === 'sales' && <SalesAnalysis data={overview.sales} />}
+          {tab === 'products' && <ProductPerformance data={overview.products} />}
+          {tab === 'customers' && <CustomerInsights data={overview.customers} router={router} />}
+          {tab === 'credit' && <CreditRisk data={overview.credit} />}
         </>
       )}
     </div>
@@ -138,16 +162,43 @@ export default function AnalyticsPage() {
    ═══════════════════════════════════════════════════════ */
 function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
   const {
-    monthlyTrend,
+    monthlyTrend = [],
+    weeklyTrend = [],
+    dailyTrend = [],
     growth,
     dayOfWeekPattern,
     channelBreakdown,
     paymentModeSplit,
     paymentTypeSplit,
     collectedVsOutstanding,
-    aovTrend,
+    aovTrend = [],
+    aovWeeklyTrend = [],
     totalRevenue,
   } = data;
+
+  const [grain, setGrain] = useState<'day' | 'week' | 'month'>('month');
+  const [drillMonth, setDrillMonth] = useState<string | null>(null);
+  const [dowMetric, setDowMetric] = useState<'avg' | 'total' | 'orders'>('avg');
+  const [aovGrain, setAovGrain] = useState<'week' | 'month'>('month');
+  const [chanMetric, setChanMetric] = useState<'revenue' | 'count'>('revenue');
+  const [pmMetric, setPmMetric] = useState<'value' | 'count'>('value');
+  const [ptMetric, setPtMetric] = useState<'value' | 'count'>('value');
+
+  const effGrain: 'day' | 'week' | 'month' = drillMonth ? 'day' : grain;
+
+  const revenueTrend = useMemo(() => {
+    if (drillMonth) {
+      return dailyTrend.filter((d) => (d.key ?? '').startsWith(drillMonth));
+    }
+    if (effGrain === 'day') return dailyTrend;
+    if (effGrain === 'week') return weeklyTrend;
+    return monthlyTrend;
+  }, [dailyTrend, weeklyTrend, monthlyTrend, effGrain, drillMonth]);
+
+  const aovSeries = aovGrain === 'week' ? aovWeeklyTrend : aovTrend;
+
+  const dowDataKey = dowMetric === 'orders' ? 'orders' : dowMetric === 'total' ? 'revenue' : 'avgRevenue';
+  const dowName = dowMetric === 'orders' ? 'Orders' : dowMetric === 'total' ? 'Total Revenue' : 'Avg Revenue';
 
   const GrowthBadge = ({ value }: { value: number }) => (
     <span className={`inline-flex items-center gap-0.5 text-xs font-bold ${value > 0 ? 'text-emerald-600' : value < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
@@ -192,7 +243,6 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
         </div>
       )}
 
-      {/* Growth KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {growth && (
           <>
@@ -226,16 +276,58 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
         </div>
       </div>
 
-      {/* Monthly Revenue Trend */}
       <div className="rounded-xl border bg-card shadow-sm">
-        <div className="p-5 border-b">
-          <h3 className="text-sm font-bold">Monthly Revenue Trend</h3>
-          <p className="text-[11px] text-muted-foreground">Tracking total revenue over time</p>
-        </div>
+        <CardHead
+          title={
+            <span className="inline-flex items-center gap-2">
+              Revenue Trend
+              {drillMonth && (
+                <button
+                  type="button"
+                  onClick={() => setDrillMonth(null)}
+                  className="text-[11px] font-semibold text-primary hover:underline"
+                >
+                  ← Back
+                </button>
+              )}
+            </span>
+          }
+          subtitle={
+            drillMonth
+              ? 'Daily revenue for the selected month'
+              : effGrain === 'month'
+                ? 'Click a month to drill into daily revenue'
+                : `Revenue per ${effGrain}`
+          }
+          control={
+            !drillMonth ? (
+              <Seg
+                value={grain}
+                onChange={(v) => setGrain(v as 'day' | 'week' | 'month')}
+                options={[
+                  ['day', 'Daily'],
+                  ['week', 'Weekly'],
+                  ['month', 'Monthly'],
+                ]}
+              />
+            ) : undefined
+          }
+        />
         <div className="p-5 h-[300px]">
-          {monthlyTrend.length > 0 ? (
+          {revenueTrend.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={monthlyTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <AreaChart
+                data={revenueTrend}
+                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                onClick={(state) => {
+                  const key = (state as { activePayload?: { payload?: { key?: string } }[] })
+                    ?.activePayload?.[0]?.payload?.key;
+                  if (!drillMonth && effGrain === 'month' && key) {
+                    setDrillMonth(key);
+                  }
+                }}
+                style={{ cursor: !drillMonth && effGrain === 'month' ? 'pointer' : 'default' }}
+              >
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#0891b2" stopOpacity={0.15} />
@@ -246,7 +338,7 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} dy={8} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} tickFormatter={(v) => fmtK(v)} />
                 <Tooltip {...TT} formatter={(value) => fmt(Number(value))} />
-                <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#0891b2" strokeWidth={2} fill="url(#revGrad)" />
+                <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#0891b2" strokeWidth={2} fill="url(#revGrad)" dot={effGrain !== 'day'} />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
@@ -256,35 +348,62 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Day of Week Pattern */}
         <div className="rounded-xl border bg-card shadow-sm">
-          <div className="p-5 border-b">
-            <h3 className="text-sm font-bold">Sales by Day of Week</h3>
-            <p className="text-[11px] text-muted-foreground">Average revenue per day to identify peak days</p>
-          </div>
+          <CardHead
+            title="Sales by Day of Week"
+            subtitle={dowMetric === 'avg' ? 'Average revenue per day' : dowMetric === 'total' ? 'Total revenue by day' : 'Order count by day'}
+            control={
+              <Seg
+                value={dowMetric}
+                onChange={(v) => setDowMetric(v as 'avg' | 'total' | 'orders')}
+                options={[
+                  ['avg', 'Avg'],
+                  ['total', 'Total'],
+                  ['orders', 'Orders'],
+                ]}
+              />
+            }
+          />
           <div className="p-5 h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dayOfWeekPattern} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} tickFormatter={(v) => fmtK(v)} />
-                <Tooltip {...TT} formatter={(value) => fmt(Number(value))} />
-                <Bar dataKey="avgRevenue" name="Avg Revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={28} />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                  tickFormatter={(v) => (dowMetric === 'orders' ? String(v) : fmtK(v))}
+                />
+                <Tooltip
+                  {...TT}
+                  formatter={(value) => (dowMetric === 'orders' ? Number(value) : fmt(Number(value)))}
+                />
+                <Bar dataKey={dowDataKey} name={dowName} fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={28} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* AOV Trend */}
         <div className="rounded-xl border bg-card shadow-sm">
-          <div className="p-5 border-b">
-            <h3 className="text-sm font-bold">Average Order Value Trend</h3>
-            <p className="text-[11px] text-muted-foreground">How average ticket size changes over time</p>
-          </div>
+          <CardHead
+            title="Average Order Value Trend"
+            subtitle={`Average ticket size per ${aovGrain}`}
+            control={
+              <Seg
+                value={aovGrain}
+                onChange={(v) => setAovGrain(v as 'week' | 'month')}
+                options={[
+                  ['week', 'Weekly'],
+                  ['month', 'Monthly'],
+                ]}
+              />
+            }
+          />
           <div className="p-5 h-[260px]">
-            {aovTrend.length > 0 ? (
+            {aovSeries.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={aovTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <LineChart data={aovSeries} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} tickFormatter={(v) => fmtK(v)} />
@@ -300,23 +419,46 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Channel Breakdown */}
         <div className="rounded-xl border bg-card shadow-sm">
-          <div className="p-5 border-b">
-            <h3 className="text-sm font-bold">Sales Channel Mix</h3>
-            <p className="text-[11px] text-muted-foreground">Revenue and orders by channel</p>
-          </div>
+          <CardHead
+            title="Sales Channel Mix"
+            subtitle={chanMetric === 'revenue' ? 'Revenue by channel' : 'Orders by channel'}
+            control={
+              <Seg
+                value={chanMetric}
+                onChange={(v) => setChanMetric(v as 'revenue' | 'count')}
+                options={[
+                  ['revenue', 'Revenue'],
+                  ['count', 'Orders'],
+                ]}
+              />
+            }
+          />
           <div className="p-5">
             <div className="flex items-center justify-center h-[200px]">
               {channelBreakdown.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={channelBreakdown} dataKey="revenue" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={45} paddingAngle={3}>
+                    <Pie
+                      data={channelBreakdown}
+                      dataKey={chanMetric}
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      innerRadius={45}
+                      paddingAngle={3}
+                    >
                       {channelBreakdown.map((_, idx) => (
                         <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip {...TT} formatter={(value) => fmt(Number(value))} />
+                    <Tooltip
+                      {...TT}
+                      formatter={(value) =>
+                        chanMetric === 'revenue' ? fmt(Number(value)) : Number(value)
+                      }
+                    />
                     <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -326,14 +468,22 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
             </div>
             <div className="space-y-2 mt-2">
               {channelBreakdown.map((ch, idx) => {
-                const total = channelBreakdown.reduce((a, c) => a + c.revenue, 0);
+                const total = channelBreakdown.reduce(
+                  (a, c) => a + (chanMetric === 'revenue' ? c.revenue : c.count),
+                  0,
+                );
+                const val = chanMetric === 'revenue' ? ch.revenue : ch.count;
                 return (
                   <div key={ch.name} className="flex items-center gap-3 py-1.5">
                     <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }} />
                     <span className="text-xs font-medium flex-1">{ch.name}</span>
-                    <span className="text-[10px] text-muted-foreground">{ch.count} orders</span>
-                    <span className="text-xs font-bold">{fmtK(ch.revenue)}</span>
-                    <span className="text-[10px] text-muted-foreground w-8 text-right">{pct(ch.revenue, total)}%</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {chanMetric === 'revenue' ? `${ch.count} orders` : fmtK(ch.revenue)}
+                    </span>
+                    <span className="text-xs font-bold">
+                      {chanMetric === 'revenue' ? fmtK(ch.revenue) : ch.count}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground w-8 text-right">{pct(val, total)}%</span>
                   </div>
                 );
               })}
@@ -341,22 +491,45 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
           </div>
         </div>
 
-        {/* Payment Mode Split */}
         <div className="rounded-xl border bg-card shadow-sm">
-          <div className="p-5 border-b">
-            <h3 className="text-sm font-bold">Payment Mode</h3>
-            <p className="text-[11px] text-muted-foreground">Full payment vs credit vs partial credit</p>
-          </div>
+          <CardHead
+            title="Payment Mode"
+            subtitle="Full payment vs credit vs partial credit"
+            control={
+              <Seg
+                value={pmMetric}
+                onChange={(v) => setPmMetric(v as 'value' | 'count')}
+                options={[
+                  ['value', 'Value'],
+                  ['count', 'Count'],
+                ]}
+              />
+            }
+          />
           <div className="p-5">
             <div className="flex items-center justify-center h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={paymentModeSplit.filter((d) => d.count > 0)} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={45} paddingAngle={3}>
+                  <Pie
+                    data={paymentModeSplit.filter((d) => d.count > 0)}
+                    dataKey={pmMetric}
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    innerRadius={45}
+                    paddingAngle={3}
+                  >
                     <Cell fill="#16a34a" />
                     <Cell fill="#ea580c" />
                     <Cell fill="#ca8a04" />
                   </Pie>
-                  <Tooltip {...TT} formatter={(value) => fmt(Number(value))} />
+                  <Tooltip
+                    {...TT}
+                    formatter={(value) =>
+                      pmMetric === 'value' ? fmt(Number(value)) : Number(value)
+                    }
+                  />
                   <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
                 </PieChart>
               </ResponsiveContainer>
@@ -371,8 +544,17 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
                 const c = colors[idx] || colors[0];
                 return (
                   <div key={item.name} className={`p-3 rounded-lg border ${c.bg} text-center`}>
-                    <p className={`text-lg font-black ${c.text}`}>{fmtK(item.value)}</p>
-                    <p className={`text-[10px] font-bold ${c.label} uppercase`}>{item.name === PaymentMode.FULL_PAYMENT ? 'Full' : item.name === PaymentMode.FULL_CREDIT ? 'Credit' : 'Partial'} ({item.count})</p>
+                    <p className={`text-lg font-black ${c.text}`}>
+                      {pmMetric === 'value' ? fmtK(item.value) : item.count}
+                    </p>
+                    <p className={`text-[10px] font-bold ${c.label} uppercase`}>
+                      {item.name === PaymentMode.FULL_PAYMENT
+                        ? 'Full'
+                        : item.name === PaymentMode.FULL_CREDIT
+                          ? 'Credit'
+                          : 'Partial'}{' '}
+                      ({pmMetric === 'value' ? item.count : fmtK(item.value)})
+                    </p>
                   </div>
                 );
               })}
@@ -381,30 +563,57 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
         </div>
       </div>
 
-      {/* Payment Type Breakdown */}
       <div className="rounded-xl border bg-card shadow-sm">
-        <div className="p-5 border-b">
-          <h3 className="text-sm font-bold">Payment Type</h3>
-          <p className="text-[11px] text-muted-foreground">How customers pay — Cash, Transfer, or POS (excludes full credit sales)</p>
-        </div>
+        <CardHead
+          title="Payment Type"
+          subtitle="How customers pay — Cash, Transfer, or POS (excludes full credit sales)"
+          control={
+            <Seg
+              value={ptMetric}
+              onChange={(v) => setPtMetric(v as 'value' | 'count')}
+              options={[
+                ['value', 'Value'],
+                ['count', 'Count'],
+              ]}
+            />
+          }
+        />
         <div className="p-5">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {paymentTypeSplit.map((item, idx) => {
-              const total = paymentTypeSplit.reduce((a, d) => a + d.value, 0);
-              const icons: Record<string, string> = { Cash: '💵', Transfer: '🏦', POS: '💳' };
+              const total = paymentTypeSplit.reduce(
+                (a, d) => a + (ptMetric === 'value' ? d.value : d.count),
+                0,
+              );
+              const val = ptMetric === 'value' ? item.value : item.count;
+              const icons: Record<string, string> = {
+                Cash: '💵',
+                Transfer: '🏦',
+                POS: '💳',
+              };
               return (
                 <div key={item.name} className="p-4 rounded-xl border bg-muted/20">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg">{icons[item.name] || '💰'}</span>
                     <span className="text-sm font-bold">{item.name}</span>
                   </div>
-                  <p className="text-xl font-black">{fmtK(item.value)}</p>
+                  <p className="text-xl font-black">
+                    {ptMetric === 'value' ? fmtK(item.value) : item.count}
+                  </p>
                   <div className="flex items-center justify-between mt-1">
-                    <span className="text-[10px] text-muted-foreground">{item.count} transactions</span>
-                    <span className="text-xs font-bold">{pct(item.value, total)}%</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {ptMetric === 'value' ? `${item.count} transactions` : fmtK(item.value)}
+                    </span>
+                    <span className="text-xs font-bold">{pct(val, total)}%</span>
                   </div>
                   <div className="mt-2 h-2 bg-muted/40 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${pct(item.value, total)}%`, backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }} />
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${pct(val, total)}%`,
+                        backgroundColor: CHART_COLORS[idx % CHART_COLORS.length],
+                      }}
+                    />
                   </div>
                 </div>
               );
@@ -421,17 +630,53 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
    ═══════════════════════════════════════════════════════ */
 function ProductPerformance({ data }: { data: AnalyticsOverviewData['products'] }) {
   const { productRevenue, categoryRevenue, stockTurnover, deadStock } = data;
+  const [prodSort, setProdSort] = useState<'revenue' | 'orders'>('revenue');
+  const [catMetric, setCatMetric] = useState<'revenue' | 'orders'>('revenue');
+  const [turnoverSort, setTurnoverSort] = useState<'turnover' | 'units'>('turnover');
+
+  const sortedProducts = useMemo(() => {
+    const rows = [...productRevenue];
+    rows.sort((a, b) =>
+      prodSort === 'revenue' ? b.revenue - a.revenue : b.count - a.count,
+    );
+    return rows.slice(0, 15);
+  }, [productRevenue, prodSort]);
+
+  const sortedCategories = useMemo(() => {
+    const rows = [...categoryRevenue];
+    rows.sort((a, b) =>
+      catMetric === 'revenue' ? b.revenue - a.revenue : b.orders - a.orders,
+    );
+    return rows;
+  }, [categoryRevenue, catMetric]);
+
+  const sortedTurnover = useMemo(() => {
+    const rows = [...stockTurnover];
+    rows.sort((a, b) =>
+      turnoverSort === 'turnover' ? b.turnover - a.turnover : b.unitsSold - a.unitsSold,
+    );
+    return rows;
+  }, [stockTurnover, turnoverSort]);
 
   return (
     <div className="space-y-5">
-      {/* Top Products by Revenue */}
       <div className="rounded-xl border bg-card shadow-sm">
-        <div className="p-5 border-b">
-          <h3 className="text-sm font-bold">Top Products by Revenue</h3>
-          <p className="text-[11px] text-muted-foreground">Best selling products ranked by total revenue</p>
-        </div>
+        <CardHead
+          title={`Top Products by ${prodSort === 'revenue' ? 'Revenue' : 'Orders'}`}
+          subtitle="Best selling products in the selected range"
+          control={
+            <Seg
+              value={prodSort}
+              onChange={(v) => setProdSort(v as 'revenue' | 'orders')}
+              options={[
+                ['revenue', 'Revenue'],
+                ['orders', 'Orders'],
+              ]}
+            />
+          }
+        />
         <div className="p-5">
-          {productRevenue.length > 0 ? (
+          {sortedProducts.length > 0 ? (
             <div className="rounded-lg border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/30 border-b">
@@ -444,12 +689,18 @@ function ProductPerformance({ data }: { data: AnalyticsOverviewData['products'] 
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {productRevenue.slice(0, 15).map((p, idx) => (
+                  {sortedProducts.map((p, idx) => (
                     <tr key={p.name} className="hover:bg-muted/20 transition-colors">
                       <td className="px-4 py-2.5 text-muted-foreground font-bold">{idx + 1}</td>
                       <td className="px-4 py-2.5 font-semibold">{p.name}</td>
                       <td className="px-4 py-2.5">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: `${CAT_COLORS[p.category] || CAT_COLORS.Other}15`, color: CAT_COLORS[p.category] || CAT_COLORS.Other }}>
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                          style={{
+                            backgroundColor: `${CAT_COLORS[p.category] || CAT_COLORS.Other}15`,
+                            color: CAT_COLORS[p.category] || CAT_COLORS.Other,
+                          }}
+                        >
                           {p.category}
                         </span>
                       </td>
@@ -467,22 +718,42 @@ function ProductPerformance({ data }: { data: AnalyticsOverviewData['products'] 
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Revenue by Category */}
         <div className="rounded-xl border bg-card shadow-sm">
-          <div className="p-5 border-b">
-            <h3 className="text-sm font-bold">Revenue by Category</h3>
-            <p className="text-[11px] text-muted-foreground">Total revenue comparison across product categories</p>
-          </div>
+          <CardHead
+            title={`${catMetric === 'revenue' ? 'Revenue' : 'Orders'} by Category`}
+            subtitle="Comparison across product categories"
+            control={
+              <Seg
+                value={catMetric}
+                onChange={(v) => setCatMetric(v as 'revenue' | 'orders')}
+                options={[
+                  ['revenue', 'Revenue'],
+                  ['orders', 'Orders'],
+                ]}
+              />
+            }
+          />
           <div className="p-5 h-[300px]">
-            {categoryRevenue.length > 0 ? (
+            {sortedCategories.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={categoryRevenue} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                <BarChart data={sortedCategories} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} tickFormatter={(v) => fmtK(v)} />
+                  <XAxis
+                    type="number"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                    tickFormatter={(v) => (catMetric === 'revenue' ? fmtK(v) : String(v))}
+                  />
                   <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} width={100} />
-                  <Tooltip {...TT} formatter={(value) => fmt(Number(value))} />
-                  <Bar dataKey="revenue" name="Revenue" radius={[0, 4, 4, 0]} barSize={18}>
-                    {categoryRevenue.map((entry, idx) => (
+                  <Tooltip
+                    {...TT}
+                    formatter={(value) =>
+                      catMetric === 'revenue' ? fmt(Number(value)) : Number(value)
+                    }
+                  />
+                  <Bar dataKey={catMetric} name={catMetric === 'revenue' ? 'Revenue' : 'Orders'} radius={[0, 4, 4, 0]} barSize={18}>
+                    {sortedCategories.map((entry, idx) => (
                       <Cell key={idx} fill={entry.fill} />
                     ))}
                   </Bar>
@@ -494,24 +765,47 @@ function ProductPerformance({ data }: { data: AnalyticsOverviewData['products'] 
           </div>
         </div>
 
-        {/* Stock Turnover */}
         <div className="rounded-xl border bg-card shadow-sm">
-          <div className="p-5 border-b">
-            <h3 className="text-sm font-bold">Stock Turnover</h3>
-            <p className="text-[11px] text-muted-foreground">Units moved in the selected range ÷ current stock (stock level is a live snapshot)</p>
-          </div>
+          <CardHead
+            title={turnoverSort === 'turnover' ? 'Stock Turnover' : 'Units Sold'}
+            subtitle="Units moved in the selected range ÷ current stock (stock level is a live snapshot)"
+            control={
+              <Seg
+                value={turnoverSort}
+                onChange={(v) => setTurnoverSort(v as 'turnover' | 'units')}
+                options={[
+                  ['turnover', 'Turnover'],
+                  ['units', 'Units'],
+                ]}
+              />
+            }
+          />
           <div className="p-5">
-            {stockTurnover.length > 0 ? (
+            {sortedTurnover.length > 0 ? (
               <div className="space-y-2.5 max-h-[280px] overflow-y-auto">
-                {stockTurnover.map((item) => {
-                  const maxTurnover = Math.max(...stockTurnover.map((s) => s.turnover), 1);
+                {sortedTurnover.map((item) => {
+                  const metric = turnoverSort === 'turnover' ? item.turnover : item.unitsSold;
+                  const maxMetric = Math.max(
+                    ...sortedTurnover.map((s) =>
+                      turnoverSort === 'turnover' ? s.turnover : s.unitsSold,
+                    ),
+                    1,
+                  );
                   return (
                     <div key={item.name} className="flex items-center gap-3">
                       <span className="text-xs font-medium w-28 truncate shrink-0" title={item.name}>{item.name}</span>
                       <div className="flex-1 h-3 bg-muted/40 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${(item.turnover / maxTurnover) * 100}%`, backgroundColor: item.fill }} />
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${(metric / maxMetric) * 100}%`,
+                            backgroundColor: item.fill,
+                          }}
+                        />
                       </div>
-                      <span className="text-xs font-bold w-10 text-right">{item.turnover}x</span>
+                      <span className="text-xs font-bold w-12 text-right">
+                        {turnoverSort === 'turnover' ? `${item.turnover}x` : item.unitsSold}
+                      </span>
                     </div>
                   );
                 })}
@@ -523,7 +817,6 @@ function ProductPerformance({ data }: { data: AnalyticsOverviewData['products'] 
         </div>
       </div>
 
-      {/* Dead Stock Alert */}
       {deadStock.length > 0 && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/50 shadow-sm">
           <div className="p-5">
@@ -548,20 +841,56 @@ function ProductPerformance({ data }: { data: AnalyticsOverviewData['products'] 
 /* ═══════════════════════════════════════════════════════
    CUSTOMER INSIGHTS TAB
    ═══════════════════════════════════════════════════════ */
-function CustomerInsights({ data, router }: { data: AnalyticsOverviewData['customers']; router: ReturnType<typeof useRouter> }) {
+function CustomerInsights({
+  data,
+  router,
+}: {
+  data: AnalyticsOverviewData['customers'];
+  router: ReturnType<typeof useRouter>;
+}) {
   const {
     kpis,
-    acquisitionTrend,
+    acquisitionTrend = [],
+    acquisitionWeeklyTrend = [],
     clvDistribution,
     buyerAnalysis,
     topSpenders,
     repeatCustomers,
     concentration,
+    segmentData = [],
   } = data;
+
+  const [acqGrain, setAcqGrain] = useState<'week' | 'month'>('month');
+  const [clvMetric, setClvMetric] = useState<'count' | 'revenue'>('count');
+  const [topSort, setTopSort] = useState<'spent' | 'orders'>('spent');
+  const [segMetric, setSegMetric] = useState<'revenue' | 'customers'>('revenue');
+
+  const acqSeries = acqGrain === 'week' ? acquisitionWeeklyTrend : acquisitionTrend;
+
+  const sortedTop = useMemo(() => {
+    const rows = [...topSpenders];
+    rows.sort((a, b) =>
+      topSort === 'spent'
+        ? b.totalSpent - a.totalSpent
+        : (b.totalOrders ?? 0) - (a.totalOrders ?? 0),
+    );
+    return rows;
+  }, [topSpenders, topSort]);
+
+  const sortedSegments = useMemo(() => {
+    const rows = segmentData.map((s) => ({
+      name: s.name,
+      customers: s.customers ?? s.value ?? 0,
+      revenue: s.revenue ?? 0,
+    }));
+    rows.sort((a, b) =>
+      segMetric === 'revenue' ? b.revenue - a.revenue : b.customers - a.customers,
+    );
+    return rows;
+  }, [segmentData, segMetric]);
 
   return (
     <div className="space-y-5">
-      {/* Summary KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="rounded-xl border bg-card p-4 shadow-sm">
           <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Total Customers</p>
@@ -582,16 +911,25 @@ function CustomerInsights({ data, router }: { data: AnalyticsOverviewData['custo
         </div>
       </div>
 
-      {/* Acquisition Trend */}
       <div className="rounded-xl border bg-card shadow-sm">
-        <div className="p-5 border-b">
-          <h3 className="text-sm font-bold">Customer Acquisition</h3>
-          <p className="text-[11px] text-muted-foreground">New customers added and cumulative growth</p>
-        </div>
+        <CardHead
+          title="Customer Acquisition"
+          subtitle={`New customers and cumulative growth per ${acqGrain}`}
+          control={
+            <Seg
+              value={acqGrain}
+              onChange={(v) => setAcqGrain(v as 'week' | 'month')}
+              options={[
+                ['week', 'Weekly'],
+                ['month', 'Monthly'],
+              ]}
+            />
+          }
+        />
         <div className="p-5 h-[280px]">
-          {acquisitionTrend.length > 0 ? (
+          {acqSeries.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={acquisitionTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <AreaChart data={acqSeries} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="acqGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.15} />
@@ -615,7 +953,6 @@ function CustomerInsights({ data, router }: { data: AnalyticsOverviewData['custo
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Buyer Engagement */}
         <div className="rounded-xl border bg-card shadow-sm">
           <div className="p-5 border-b">
             <h3 className="text-sm font-bold">Buyer Engagement Tiers</h3>
@@ -647,45 +984,80 @@ function CustomerInsights({ data, router }: { data: AnalyticsOverviewData['custo
           </div>
         </div>
 
-        {/* CLV Distribution */}
         <div className="rounded-xl border bg-card shadow-sm">
-          <div className="p-5 border-b">
-            <h3 className="text-sm font-bold">Lifetime Value Distribution</h3>
-            <p className="text-[11px] text-muted-foreground">How customer spending is distributed</p>
-          </div>
+          <CardHead
+            title="Lifetime Value Distribution"
+            subtitle={clvMetric === 'count' ? 'Customers per spend bracket' : 'Revenue per spend bracket'}
+            control={
+              <Seg
+                value={clvMetric}
+                onChange={(v) => setClvMetric(v as 'count' | 'revenue')}
+                options={[
+                  ['count', 'Count'],
+                  ['revenue', 'Revenue'],
+                ]}
+              />
+            }
+          />
           <div className="p-5 h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={clvDistribution} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
-                <Tooltip {...TT} />
-                <Bar dataKey="count" name="Customers" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={32} />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                  tickFormatter={(v) => (clvMetric === 'revenue' ? fmtK(v) : String(v))}
+                />
+                <Tooltip
+                  {...TT}
+                  formatter={(value) =>
+                    clvMetric === 'revenue' ? fmt(Number(value)) : Number(value)
+                  }
+                />
+                <Bar
+                  dataKey={clvMetric}
+                  name={clvMetric === 'count' ? 'Customers' : 'Revenue'}
+                  fill="hsl(var(--primary))"
+                  radius={[4, 4, 0, 0]}
+                  barSize={32}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      {/* Top Customers & Repeat Customers */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Top Customers by Spend */}
         <div className="rounded-xl border bg-card shadow-sm">
-          <div className="p-5 border-b">
-            <h3 className="text-sm font-bold">Top Customers</h3>
-            <p className="text-[11px] text-muted-foreground">Ranked by total spend</p>
-          </div>
+          <CardHead
+            title="Top Customers"
+            subtitle={topSort === 'spent' ? 'Ranked by total spend' : 'Ranked by order count'}
+            control={
+              <Seg
+                value={topSort}
+                onChange={(v) => setTopSort(v as 'spent' | 'orders')}
+                options={[
+                  ['spent', 'Spend'],
+                  ['orders', 'Orders'],
+                ]}
+              />
+            }
+          />
           <div className="p-5">
-            {topSpenders.length > 0 ? (
+            {sortedTop.length > 0 ? (
               <div className="space-y-1">
-                {topSpenders.map((c, idx) => (
+                {sortedTop.map((c, idx) => (
                   <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/30 transition-colors">
                     <span className="text-xs font-black text-muted-foreground w-5 text-center">{idx + 1}</span>
                     <p className="text-sm font-semibold flex-1 truncate">{c.name}</p>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.type === 'B2B' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
                       {c.type}
                     </span>
-                    <span className="text-sm font-black text-emerald-600 w-20 text-right">{fmtK(c.totalSpent)}</span>
+                    <span className="text-sm font-black text-emerald-600 w-20 text-right">
+                      {topSort === 'spent' ? fmtK(c.totalSpent) : `${c.totalOrders ?? 0} ord`}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -695,7 +1067,6 @@ function CustomerInsights({ data, router }: { data: AnalyticsOverviewData['custo
           </div>
         </div>
 
-        {/* Repeat Customers */}
         <div className="rounded-xl border bg-card shadow-sm">
           <div className="p-5 border-b">
             <h3 className="text-sm font-bold">Repeat Customers</h3>
@@ -723,9 +1094,56 @@ function CustomerInsights({ data, router }: { data: AnalyticsOverviewData['custo
         </div>
       </div>
 
-      {/* View All Customers Button */}
+      {sortedSegments.length > 0 && (
+        <div className="rounded-xl border bg-card shadow-sm">
+          <CardHead
+            title="Segment Performance"
+            subtitle={segMetric === 'revenue' ? 'Revenue by segment' : 'Customers by segment'}
+            control={
+              <Seg
+                value={segMetric}
+                onChange={(v) => setSegMetric(v as 'revenue' | 'customers')}
+                options={[
+                  ['revenue', 'Revenue'],
+                  ['customers', 'Customers'],
+                ]}
+              />
+            }
+          />
+          <div className="p-5 h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={sortedSegments} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+                <XAxis
+                  type="number"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                  tickFormatter={(v) => (segMetric === 'revenue' ? fmtK(v) : String(v))}
+                />
+                <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} width={120} />
+                <Tooltip
+                  {...TT}
+                  formatter={(value) =>
+                    segMetric === 'revenue' ? fmt(Number(value)) : Number(value)
+                  }
+                />
+                <Bar
+                  dataKey={segMetric}
+                  name={segMetric === 'revenue' ? 'Revenue' : 'Customers'}
+                  fill="#0891b2"
+                  radius={[0, 4, 4, 0]}
+                  barSize={18}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-center">
         <button
+          type="button"
           onClick={() => router.push('/customers')}
           className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shadow-sm hover:opacity-90 transition-opacity"
         >
@@ -747,13 +1165,33 @@ function CreditRisk({ data }: { data: AnalyticsOverviewData['credit'] }) {
     agingReport,
     topDebtors,
     customerRisk,
-    collectionTrend,
+    collectionTrend = [],
+    collectionWeeklyTrend = [],
   } = data;
   const { totalOutstanding, totalOverdue, totalCleared, collectionRate } = kpis;
 
+  const [agingMetric, setAgingMetric] = useState<'amount' | 'count'>('amount');
+  const [debtorStatus, setDebtorStatus] = useState<'all' | 'Overdue' | 'Pending'>('all');
+  const [riskSort, setRiskSort] = useState<'ratio' | 'owed'>('ratio');
+  const [collGrain, setCollGrain] = useState<'week' | 'month'>('month');
+
+  const filteredDebtors = useMemo(() => {
+    if (debtorStatus === 'all') return topDebtors;
+    return topDebtors.filter((d) => d.status === debtorStatus);
+  }, [topDebtors, debtorStatus]);
+
+  const sortedRisk = useMemo(() => {
+    const rows = [...customerRisk];
+    rows.sort((a, b) =>
+      riskSort === 'ratio' ? b.creditRatio - a.creditRatio : b.totalOwed - a.totalOwed,
+    );
+    return rows;
+  }, [customerRisk, riskSort]);
+
+  const collSeries = collGrain === 'week' ? collectionWeeklyTrend : collectionTrend;
+
   return (
     <div className="space-y-5">
-      {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="rounded-xl border bg-card p-4 shadow-sm">
           <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Outstanding</p>
@@ -773,34 +1211,61 @@ function CreditRisk({ data }: { data: AnalyticsOverviewData['credit'] }) {
         </div>
       </div>
 
-      {/* Aging Report */}
       <div className="rounded-xl border bg-card shadow-sm">
-        <div className="p-5 border-b">
-          <h3 className="text-sm font-bold">Aging Report</h3>
-          <p className="text-[11px] text-muted-foreground">Outstanding credit breakdown by age</p>
-        </div>
+        <CardHead
+          title="Aging Report"
+          subtitle="Outstanding credit breakdown by age"
+          control={
+            <Seg
+              value={agingMetric}
+              onChange={(v) => setAgingMetric(v as 'amount' | 'count')}
+              options={[
+                ['amount', 'Amount'],
+                ['count', 'Count'],
+              ]}
+            />
+          }
+        />
         <div className="p-5">
           <div className="grid grid-cols-4 gap-3 mb-4">
             {agingReport.map((bucket, idx) => {
-              const colors = ['bg-emerald-50 border-emerald-200 text-emerald-700', 'bg-blue-50 border-blue-200 text-blue-700', 'bg-amber-50 border-amber-200 text-amber-700', 'bg-red-50 border-red-200 text-red-700'];
+              const colors = [
+                'bg-emerald-50 border-emerald-200 text-emerald-700',
+                'bg-blue-50 border-blue-200 text-blue-700',
+                'bg-amber-50 border-amber-200 text-amber-700',
+                'bg-red-50 border-red-200 text-red-700',
+              ];
               return (
                 <div key={bucket.label} className={`p-4 rounded-lg border text-center ${colors[idx]}`}>
-                  <p className="text-xl font-black">{fmtK(bucket.amount)}</p>
+                  <p className="text-xl font-black">
+                    {agingMetric === 'count' ? bucket.count : fmtK(bucket.amount)}
+                  </p>
                   <p className="text-[10px] font-bold uppercase mt-1">{bucket.label}</p>
-                  <p className="text-[10px] opacity-70">{bucket.count} accounts</p>
+                  <p className="text-[10px] opacity-70">
+                    {agingMetric === 'count' ? fmtK(bucket.amount) : `${bucket.count} accounts`}
+                  </p>
                 </div>
               );
             })}
           </div>
 
-          {/* Aging bar */}
           {totalOutstanding > 0 && (
             <div className="flex h-4 rounded-full overflow-hidden border">
               {agingReport.map((bucket, idx) => {
                 const colors = ['bg-emerald-500', 'bg-blue-500', 'bg-amber-500', 'bg-red-500'];
-                const width = pct(bucket.amount, totalOutstanding);
+                const metric = agingMetric === 'count' ? bucket.count : bucket.amount;
+                const totalMetric =
+                  agingMetric === 'count'
+                    ? agingReport.reduce((a, b) => a + b.count, 0)
+                    : totalOutstanding;
+                const width = pct(metric, totalMetric);
                 return width > 0 ? (
-                  <div key={idx} className={`${colors[idx]} transition-all`} style={{ width: `${width}%` }} title={`${bucket.label}: ${fmtK(bucket.amount)}`} />
+                  <div
+                    key={idx}
+                    className={`${colors[idx]} transition-all`}
+                    style={{ width: `${width}%` }}
+                    title={`${bucket.label}: ${agingMetric === 'count' ? `${bucket.count} accounts` : fmtK(bucket.amount)}`}
+                  />
                 ) : null;
               })}
             </div>
@@ -809,22 +1274,36 @@ function CreditRisk({ data }: { data: AnalyticsOverviewData['credit'] }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Top Debtors */}
         <div className="rounded-xl border bg-card shadow-sm">
-          <div className="p-5 border-b">
-            <h3 className="text-sm font-bold">Top Debtors</h3>
-            <p className="text-[11px] text-muted-foreground">Customers with the largest outstanding balances</p>
-          </div>
+          <CardHead
+            title="Top Debtors"
+            subtitle="Customers with the largest outstanding balances"
+            control={
+              <Seg
+                value={debtorStatus}
+                onChange={(v) => setDebtorStatus(v as 'all' | 'Overdue' | 'Pending')}
+                options={[
+                  ['all', 'All'],
+                  ['Overdue', 'Overdue'],
+                  ['Pending', 'Pending'],
+                ]}
+              />
+            }
+          />
           <div className="p-5">
-            {topDebtors.length > 0 ? (
+            {filteredDebtors.length > 0 ? (
               <div className="space-y-2.5">
-                {topDebtors.map((cr, idx) => (
+                {filteredDebtors.map((cr, idx) => (
                   <div key={cr.id} className="flex items-center gap-3 py-2 border-b last:border-0">
                     <span className="text-xs font-bold text-muted-foreground w-5">{idx + 1}</span>
                     <span className="text-xs font-semibold flex-1 truncate">{cr.customerName}</span>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                      cr.status === 'Overdue' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
-                    }`}>{cr.status}</span>
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                        cr.status === 'Overdue' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {cr.status}
+                    </span>
                     <span className="text-xs font-black w-20 text-right">{fmtK(cr.amountOwed)}</span>
                   </div>
                 ))}
@@ -835,25 +1314,48 @@ function CreditRisk({ data }: { data: AnalyticsOverviewData['credit'] }) {
           </div>
         </div>
 
-        {/* Credit Risk by Customer */}
         <div className="rounded-xl border bg-card shadow-sm">
-          <div className="p-5 border-b">
-            <h3 className="text-sm font-bold">Customer Credit Risk</h3>
-            <p className="text-[11px] text-muted-foreground">Owed amount as % of total spend (higher = riskier)</p>
-          </div>
+          <CardHead
+            title="Customer Credit Risk"
+            subtitle={
+              riskSort === 'ratio'
+                ? 'Owed as % of total spend (higher = riskier)'
+                : 'Ranked by amount owed'
+            }
+            control={
+              <Seg
+                value={riskSort}
+                onChange={(v) => setRiskSort(v as 'ratio' | 'owed')}
+                options={[
+                  ['ratio', 'Ratio'],
+                  ['owed', 'Owed'],
+                ]}
+              />
+            }
+          />
           <div className="p-5">
-            {customerRisk.length > 0 ? (
+            {sortedRisk.length > 0 ? (
               <div className="space-y-2.5">
-                {customerRisk.map((cr) => (
+                {sortedRisk.map((cr) => (
                   <div key={cr.name} className="flex items-center gap-3">
                     <span className="text-xs font-medium w-24 truncate shrink-0" title={cr.name}>{cr.name}</span>
-                    <div className="flex-1 h-3 bg-muted/40 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full transition-all ${cr.creditRatio > 50 ? 'bg-red-500' : cr.creditRatio > 25 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                        style={{ width: `${Math.min(cr.creditRatio, 100)}%` }} />
-                    </div>
-                    <span className={`text-xs font-bold w-10 text-right ${cr.creditRatio > 50 ? 'text-red-600' : cr.creditRatio > 25 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                      {cr.creditRatio}%
-                    </span>
+                    {riskSort === 'ratio' ? (
+                      <>
+                        <div className="flex-1 h-3 bg-muted/40 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${cr.creditRatio > 50 ? 'bg-red-500' : cr.creditRatio > 25 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                            style={{ width: `${Math.min(cr.creditRatio, 100)}%` }}
+                          />
+                        </div>
+                        <span
+                          className={`text-xs font-bold w-10 text-right ${cr.creditRatio > 50 ? 'text-red-600' : cr.creditRatio > 25 ? 'text-amber-600' : 'text-emerald-600'}`}
+                        >
+                          {cr.creditRatio}%
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-xs font-black ml-auto">{fmtK(cr.totalOwed)}</span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -864,16 +1366,25 @@ function CreditRisk({ data }: { data: AnalyticsOverviewData['credit'] }) {
         </div>
       </div>
 
-      {/* Collection Trend */}
-      {collectionTrend.length > 0 && (
+      {collSeries.length > 0 && (
         <div className="rounded-xl border bg-card shadow-sm">
-          <div className="p-5 border-b">
-            <h3 className="text-sm font-bold">Collection Performance</h3>
-            <p className="text-[11px] text-muted-foreground">Credits issued vs cleared per month</p>
-          </div>
+          <CardHead
+            title="Collection Performance"
+            subtitle={`Credits issued vs cleared per ${collGrain}`}
+            control={
+              <Seg
+                value={collGrain}
+                onChange={(v) => setCollGrain(v as 'week' | 'month')}
+                options={[
+                  ['week', 'Weekly'],
+                  ['month', 'Monthly'],
+                ]}
+              />
+            }
+          />
           <div className="p-5 h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={collectionTrend} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+              <BarChart data={collSeries} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} tickFormatter={(v) => fmtK(v)} />

@@ -717,6 +717,7 @@ export function useUpdateProfile() {
 export function useCustomers(filters?: {
   search?: string;
   segment_id?: string;
+  segment_ids?: string[];
   type?: string;
   hub_id?: string;
   period?: string;
@@ -743,6 +744,9 @@ export function useCustomers(filters?: {
         customer_type: filters?.type ? customerTypeToApi(filters.type) : undefined,
         hub_id: filters?.hub_id,
         segment_id: filters?.segment_id,
+        segment_ids: filters?.segment_ids?.length
+          ? filters.segment_ids.join(',')
+          : undefined,
         period: filters?.period,
         date_from: filters?.date_from,
         date_to: filters?.date_to,
@@ -772,6 +776,7 @@ export function useCreateCustomer() {
       company_name?: string;
       assigned_agent?: string;
       business_category?: string;
+      gender?: string;
       family_type?: string;
       marital_status?: string;
       age_group?: string;
@@ -810,6 +815,7 @@ export function useUpdateCustomer() {
       company_name?: string;
       assigned_agent?: string;
       business_category?: string;
+      gender?: string;
       family_type?: string;
       marital_status?: string;
       age_group?: string;

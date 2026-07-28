@@ -181,6 +181,7 @@ export function mapCustomer(c: ApiCustomer, hubMap?: Record<string, string>): Cu
     addedByAgentId: assigned?._id || refId(c.assigned_agent) || undefined,
     addedByAgentName: assigned?.full_name || addedBy?.full_name || undefined,
     businessCategory: c.business_category,
+    gender: c.gender,
     familyType: c.family_type,
     maritalStatus: c.marital_status,
     ageGroup: c.age_group,

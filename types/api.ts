@@ -187,6 +187,7 @@ export interface ApiCustomer {
   assigned_agent?: string | { _id?: string; full_name?: string };
   added_by?: string | { _id?: string; full_name?: string };
   business_category?: string;
+  gender?: string;
   family_type?: string;
   marital_status?: string;
   age_group?: string;

@@ -21,6 +21,7 @@ export const B2B_CATEGORIES = [
   'Corporate / Offices',
 ] as const;
 
+export const GENDERS = ['Male', 'Female'] as const;
 export const FAMILY_TYPES = ['Monogamy', 'Polygamy', 'Nuclear', 'Extended'] as const;
 export const MARITAL_STATUSES = ['Single', 'Married', 'Divorced', 'Widowed'] as const;
 export const AGE_GROUPS = ['18-25', '26-35', '36-45', '46-60', '60+'] as const;
@@ -321,6 +322,7 @@ export interface Customer {
   addedByAgentId?: string;
   addedByAgentName?: string;
   businessCategory?: string;
+  gender?: string;
   familyType?: string;
   maritalStatus?: string;
   ageGroup?: string;

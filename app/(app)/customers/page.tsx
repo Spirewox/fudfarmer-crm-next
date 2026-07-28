@@ -10,7 +10,7 @@ import {
 import {
   Customer, CustomerType,
   CreditGrade,
-  B2B_CATEGORIES, FAMILY_TYPES, MARITAL_STATUSES, AGE_GROUPS,
+  B2B_CATEGORIES, GENDERS, FAMILY_TYPES, MARITAL_STATUSES, AGE_GROUPS,
   LIFESTYLE_TAGS, EMPLOYMENT_STATUSES, RELIGIONS,
 } from '@/types';
 import {
@@ -23,7 +23,7 @@ import { CustomerImportModal } from './customer-import-modal';
 import { toast } from 'sonner';
 import { isPlaceholderEmail, isB2bCustomerType, customerPhoneForApi } from '@/lib/customer-helpers';
 import { hubOptionLabel } from '@/lib/api-mappers';
-import { deriveSegments, SEGMENT_GROUP_OF } from '@/lib/segmentation';
+import { deriveSegments, SEGMENT_GROUP_OF, SEGMENT_TAXONOMY } from '@/lib/segmentation';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useHubScopeFilter } from '@/hooks/use-hub-scope';
 import { HubScopeFilterBar } from '@/components/hub-scope-filter';
@@ -87,6 +87,7 @@ function ProfileFields({ type, data, onChange, dense = false }: {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="space-y-1.5"><label className={labelCls}>Gender</label><select value={data.gender || ''} onChange={(e) => onChange({ gender: e.target.value })} className={cls}><option value="">— Select —</option>{GENDERS.map(opt)}</select></div>
       <div className="space-y-1.5"><label className={labelCls}>Family Type</label><select value={data.familyType || ''} onChange={(e) => onChange({ familyType: e.target.value })} className={cls}><option value="">— Select —</option>{FAMILY_TYPES.map(opt)}</select></div>
       <div className="space-y-1.5"><label className={labelCls}>Marital Status</label><select value={data.maritalStatus || ''} onChange={(e) => onChange({ maritalStatus: e.target.value })} className={cls}><option value="">— Select —</option>{MARITAL_STATUSES.map(opt)}</select></div>
       <div className="space-y-1.5"><label className={labelCls}>Age Group</label><select value={data.ageGroup || ''} onChange={(e) => onChange({ ageGroup: e.target.value })} className={cls}><option value="">— Select —</option>{AGE_GROUPS.map(opt)}</select></div>
@@ -101,6 +102,7 @@ function ProfileFields({ type, data, onChange, dense = false }: {
 function clearOppositeProfileFields(type: CustomerType): Partial<Customer> {
   if (type === CustomerType.B2B) {
     return {
+      gender: undefined,
       familyType: undefined,
       maritalStatus: undefined,
       ageGroup: undefined,
@@ -167,15 +169,18 @@ export default function CustomersPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<CustomerType | 'All'>('All');
-  const [filterSegment, setFilterSegment] = useState<string>('All');
+  const [filterSegmentIds, setFilterSegmentIds] = useState<string[]>([]);
+  const [segmentFilterOpen, setSegmentFilterOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [page, setPage] = useState(1);
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
   const { data: segments = [] } = useSegments();
-  const segmentId = filterSegment === 'All'
-    ? undefined
-    : segments.find((s) => s.name === filterSegment)?.id;
+  const segmentByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of segments) map.set(s.name, s.id);
+    return map;
+  }, [segments]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
@@ -184,13 +189,13 @@ export default function CustomersPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, filterType, filterSegment, hubScope.hubIdForApi, metricsPeriod.apiParams]);
+  }, [debouncedSearch, filterType, filterSegmentIds, hubScope.hubIdForApi, metricsPeriod.apiParams]);
 
   const { data: customerList, isLoading: customersLoading, isFetching: customersFetching } = useCustomers({
     search: debouncedSearch || undefined,
     type: filterType === 'All' ? undefined : filterType,
     hub_id: hubScope.hubIdForApi,
-    segment_id: segmentId,
+    segment_ids: filterSegmentIds.length ? filterSegmentIds : undefined,
     page,
     limit: CUSTOMERS_PAGE_SIZE,
     ...metricsPeriod.apiParams,
@@ -328,6 +333,7 @@ export default function CustomersPage() {
       company_name: newCustomer.companyName,
       assigned_agent: newCustomer.addedByAgentId,
       business_category: isB2b ? newCustomer.businessCategory : undefined,
+      gender: !isB2b ? newCustomer.gender : undefined,
       family_type: !isB2b ? newCustomer.familyType : undefined,
       marital_status: !isB2b ? newCustomer.maritalStatus : undefined,
       age_group: !isB2b ? newCustomer.ageGroup : undefined,
@@ -369,6 +375,7 @@ export default function CustomersPage() {
       customer_location: hub?.id,
       company_name: editForm.companyName,
       business_category: isB2b ? editForm.businessCategory : undefined,
+      gender: !isB2b ? editForm.gender : undefined,
       family_type: !isB2b ? editForm.familyType : undefined,
       marital_status: !isB2b ? editForm.maritalStatus : undefined,
       age_group: !isB2b ? editForm.ageGroup : undefined,
@@ -696,12 +703,73 @@ export default function CustomersPage() {
           </div>
           <HubScopeFilterBar scope={hubScope} />
           {segments.length > 0 && (
-            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-background">
-              <Heart size={14} className="text-muted-foreground" />
-              <select value={filterSegment} onChange={(e) => setFilterSegment(e.target.value)} className="bg-transparent border-none text-sm font-medium focus:outline-none">
-                <option value="All">All Segments</option>
-                {segments.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
-              </select>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setSegmentFilterOpen((o) => !o)}
+                className="flex items-center gap-2 border rounded-md px-3 py-2 bg-background text-sm font-medium"
+              >
+                <Heart size={14} className="text-muted-foreground" />
+                {filterSegmentIds.length === 0
+                  ? 'All Segments'
+                  : `${filterSegmentIds.length} segment${filterSegmentIds.length === 1 ? '' : 's'}`}
+                <ChevronDown size={14} className="text-muted-foreground" />
+              </button>
+              {segmentFilterOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setSegmentFilterOpen(false)} />
+                  <div className="absolute left-0 top-full mt-1 z-20 w-72 max-h-80 overflow-auto rounded-md border bg-background shadow-lg p-2">
+                    <div className="flex items-center justify-between px-2 py-1.5 mb-1">
+                      <span className="text-xs font-medium text-muted-foreground">Match all selected</span>
+                      {filterSegmentIds.length > 0 && (
+                        <button
+                          type="button"
+                          className="text-xs text-primary hover:underline"
+                          onClick={() => setFilterSegmentIds([])}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    {SEGMENT_TAXONOMY.map((group) => {
+                      const options = group.segments
+                        .map((name) => ({ name, id: segmentByName.get(name) }))
+                        .filter((o): o is { name: string; id: string } => !!o.id);
+                      if (options.length === 0) return null;
+                      return (
+                        <div key={group.group} className="mb-2">
+                          <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                            {group.group}
+                          </p>
+                          {options.map((opt) => {
+                            const checked = filterSegmentIds.includes(opt.id);
+                            return (
+                              <label
+                                key={opt.id}
+                                className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer text-sm"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    setFilterSegmentIds((prev) =>
+                                      checked
+                                        ? prev.filter((id) => id !== opt.id)
+                                        : [...prev, opt.id],
+                                    );
+                                  }}
+                                  className="rounded border-input"
+                                />
+                                <span className="truncate">{opt.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -1057,6 +1125,7 @@ export default function CustomersPage() {
                       const rows = selectedCustomer.type === CustomerType.B2B
                         ? [{ icon: Tag, label: 'Category', value: selectedCustomer.businessCategory }]
                         : [
+                            { icon: User, label: 'Gender', value: selectedCustomer.gender },
                             { icon: Home, label: 'Family Type', value: selectedCustomer.familyType },
                             { icon: Heart, label: 'Marital Status', value: selectedCustomer.maritalStatus },
                             { icon: Cake, label: 'Age Group', value: selectedCustomer.ageGroup },

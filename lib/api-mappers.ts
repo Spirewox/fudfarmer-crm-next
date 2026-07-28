@@ -160,6 +160,12 @@ export function mapCustomer(c: ApiCustomer, hubMap?: Record<string, string>): Cu
   const segments = (c.segments ?? []).map((s) =>
     typeof s === 'string' ? s : s.name,
   );
+  const assigned =
+    typeof c.assigned_agent === 'object' && c.assigned_agent
+      ? c.assigned_agent
+      : null;
+  const addedBy =
+    typeof c.added_by === 'object' && c.added_by ? c.added_by : null;
   return {
     id: c._id,
     name: c.customer_name,
@@ -172,8 +178,16 @@ export function mapCustomer(c: ApiCustomer, hubMap?: Record<string, string>): Cu
     segments,
     totalOrders: c.total_orders ?? 0,
     totalSpent: c.total_spent ?? 0,
-    addedByAgentId: c.assigned_agent,
-    addedByAgentName: c.added_by,
+    addedByAgentId: assigned?._id || refId(c.assigned_agent) || undefined,
+    addedByAgentName: assigned?.full_name || addedBy?.full_name || undefined,
+    businessCategory: c.business_category,
+    familyType: c.family_type,
+    maritalStatus: c.marital_status,
+    ageGroup: c.age_group,
+    lifestyle: c.lifestyle,
+    employmentStatus: c.employment_status,
+    jobType: c.job_type,
+    religion: c.religion,
   };
 }
 

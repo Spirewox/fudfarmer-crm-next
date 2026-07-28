@@ -770,8 +770,15 @@ export function useCreateCustomer() {
       customer_type: string;
       customer_location: string;
       company_name?: string;
-      segments?: string[];
       assigned_agent?: string;
+      business_category?: string;
+      family_type?: string;
+      marital_status?: string;
+      age_group?: string;
+      lifestyle?: string;
+      employment_status?: string;
+      job_type?: string;
+      religion?: string;
     }) => {
       const { company_name, customer_type, ...rest } = dto;
       const res = await axiosPost('customers', {
@@ -801,8 +808,15 @@ export function useUpdateCustomer() {
       customer_type?: string;
       customer_location?: string;
       company_name?: string;
-      segments?: string[];
       assigned_agent?: string;
+      business_category?: string;
+      family_type?: string;
+      marital_status?: string;
+      age_group?: string;
+      lifestyle?: string;
+      employment_status?: string;
+      job_type?: string;
+      religion?: string;
     }) => {
       const { company_name, customer_type, customer_phone, ...rest } = dto;
       const res = await axiosPatch(`customers/${id}`, {
@@ -905,6 +919,7 @@ type SalesQueryFilters = {
   payment_mode?: string;
   hub_id?: string;
   agent_id?: string;
+  customer_id?: string;
   channel?: string;
   search?: string;
   exclude_voided?: boolean;
@@ -931,6 +946,7 @@ export function useSales(
         payment_mode: filters?.payment_mode,
         hub_id: filters?.hub_id,
         agent_id: filters?.agent_id,
+        customer_id: filters?.customer_id,
         channel: filters?.channel,
         search: filters?.search,
         exclude_voided: filters?.exclude_voided,

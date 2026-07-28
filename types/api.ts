@@ -184,8 +184,16 @@ export interface ApiCustomer {
   segments?: Array<string | ApiSegment>;
   total_orders?: number;
   total_spent?: number;
-  assigned_agent?: string;
-  added_by?: string;
+  assigned_agent?: string | { _id?: string; full_name?: string };
+  added_by?: string | { _id?: string; full_name?: string };
+  business_category?: string;
+  family_type?: string;
+  marital_status?: string;
+  age_group?: string;
+  lifestyle?: string;
+  employment_status?: string;
+  job_type?: string;
+  religion?: string;
 }
 
 export interface ApiCustomerListSummary {

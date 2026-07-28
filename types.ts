@@ -5,6 +5,44 @@ export enum CustomerType {
   B2B = 'B2B',
 }
 
+export const B2B_CATEGORIES = [
+  'Roadside Business & Food Vendors',
+  'Hospitality',
+  'Schools',
+  'Religious Bodies',
+  'NGOs & Associations',
+  'Retailers',
+  'Education Institutions',
+  'Event Planners',
+  'Restaurants & Bars',
+  'Hotels',
+  'Catering Services',
+  'Supermarkets',
+  'Corporate / Offices',
+] as const;
+
+export const FAMILY_TYPES = ['Monogamy', 'Polygamy', 'Nuclear', 'Extended'] as const;
+export const MARITAL_STATUSES = ['Single', 'Married', 'Divorced', 'Widowed'] as const;
+export const AGE_GROUPS = ['18-25', '26-35', '36-45', '46-60', '60+'] as const;
+export const LIFESTYLE_TAGS = [
+  'Health-Conscious',
+  'Fitness-Oriented',
+  'Diet-Restricted',
+  'Organic Preference',
+  'Convenience-Seeker',
+  'Budget-Conscious',
+] as const;
+export const EMPLOYMENT_STATUSES = [
+  'Self-Employed',
+  'Privately Employed',
+  'Civil Servant',
+  'Business Owner',
+  'Student',
+  'Unemployed',
+  'Retired',
+] as const;
+export const RELIGIONS = ['Christian', 'Muslim', 'Traditional', 'Other'] as const;
+
 export enum Location {
   LAGOS = 'Lagos',
   IFE = 'Ife',
@@ -282,6 +320,14 @@ export interface Customer {
   totalSpent: number;
   addedByAgentId?: string;
   addedByAgentName?: string;
+  businessCategory?: string;
+  familyType?: string;
+  maritalStatus?: string;
+  ageGroup?: string;
+  lifestyle?: string;
+  employmentStatus?: string;
+  jobType?: string;
+  religion?: string;
 }
 
 export interface CustomerListSummary {

@@ -1,16 +1,17 @@
 'use client';
 
-import { useRef, useState, useMemo, useEffect } from 'react';
+import { Fragment, useRef, useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import {
   useCustomers, useCreateCustomer, useUpdateCustomer, useAgents,
   useCustomerCredits, useSales, useFeedback, useEnquiries, useCompensations, useHubs,
   useDownloadCustomerImportTemplate, useValidateCustomerImport, useImportCustomers, useSegments,
-  useCreateSegment,
 } from '@/hooks/use-queries';
 import {
-  Customer, CustomerType, PREDEFINED_SEGMENTS,
+  Customer, CustomerType,
   CreditGrade,
+  B2B_CATEGORIES, FAMILY_TYPES, MARITAL_STATUSES, AGE_GROUPS,
+  LIFESTYLE_TAGS, EMPLOYMENT_STATUSES, RELIGIONS,
 } from '@/types';
 import {
   CustomerImportPreviewRow,
@@ -22,6 +23,7 @@ import { CustomerImportModal } from './customer-import-modal';
 import { toast } from 'sonner';
 import { isPlaceholderEmail, isB2bCustomerType, customerPhoneForApi } from '@/lib/customer-helpers';
 import { hubOptionLabel } from '@/lib/api-mappers';
+import { deriveSegments, SEGMENT_GROUP_OF } from '@/lib/segmentation';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useHubScopeFilter } from '@/hooks/use-hub-scope';
 import { HubScopeFilterBar } from '@/components/hub-scope-filter';
@@ -37,11 +39,79 @@ import {
   Filter, Phone, Mail, Calendar, Copy, Check,
   Edit3, Save, ShoppingCart, CreditCard, MessageSquare,
   Package, Truck, ChevronRight, AlertTriangle,
-  RefreshCw, Clock, Loader2,
+  RefreshCw, Clock, Loader2, TrendingUp, TrendingDown,
   Users, BarChart3, Heart, Upload, Download,
+  Briefcase, Home, Church, Cake, HeartPulse, Tag, Sparkles,
+  Repeat, ChevronDown, Activity, Wallet, Flame, Timer, Boxes, Gauge,
 } from 'lucide-react';
 
 type DetailTab = 'overview' | 'purchases' | 'credit' | 'interactions';
+
+const SEG_GROUP_COLORS: Record<string, string> = {
+  Channel: 'bg-slate-100 text-slate-700 border-slate-200',
+  Loyalty: 'bg-purple-50 text-purple-700 border-purple-200',
+  Value: 'bg-amber-50 text-amber-700 border-amber-200',
+  'Business Type': 'bg-blue-50 text-blue-700 border-blue-200',
+  Household: 'bg-teal-50 text-teal-700 border-teal-200',
+  'Life Stage': 'bg-pink-50 text-pink-700 border-pink-200',
+  Lifestyle: 'bg-green-50 text-green-700 border-green-200',
+  Occupation: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  Dietary: 'bg-orange-50 text-orange-700 border-orange-200',
+};
+const segClass = (s: string) => SEG_GROUP_COLORS[SEGMENT_GROUP_OF[s]] || 'bg-muted text-muted-foreground border-border';
+
+const pfCls = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring';
+const pfClsSm = 'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring';
+
+function ProfileFields({ type, data, onChange, dense = false }: {
+  type: CustomerType;
+  data: Partial<Customer>;
+  onChange: (patch: Partial<Customer>) => void;
+  dense?: boolean;
+}) {
+  const cls = dense ? pfClsSm : pfCls;
+  const labelCls = dense ? 'text-xs font-medium text-muted-foreground' : 'text-sm font-medium';
+  const opt = (v: string) => <option key={v} value={v}>{v}</option>;
+
+  if (type === CustomerType.B2B) {
+    return (
+      <div className="space-y-1.5">
+        <label className={labelCls}>Business Category</label>
+        <select value={data.businessCategory || ''} onChange={(e) => onChange({ businessCategory: e.target.value })} className={cls}>
+          <option value="">— Select category —</option>
+          {B2B_CATEGORIES.map(opt)}
+        </select>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="space-y-1.5"><label className={labelCls}>Family Type</label><select value={data.familyType || ''} onChange={(e) => onChange({ familyType: e.target.value })} className={cls}><option value="">— Select —</option>{FAMILY_TYPES.map(opt)}</select></div>
+      <div className="space-y-1.5"><label className={labelCls}>Marital Status</label><select value={data.maritalStatus || ''} onChange={(e) => onChange({ maritalStatus: e.target.value })} className={cls}><option value="">— Select —</option>{MARITAL_STATUSES.map(opt)}</select></div>
+      <div className="space-y-1.5"><label className={labelCls}>Age Group</label><select value={data.ageGroup || ''} onChange={(e) => onChange({ ageGroup: e.target.value })} className={cls}><option value="">— Select —</option>{AGE_GROUPS.map(opt)}</select></div>
+      <div className="space-y-1.5"><label className={labelCls}>Lifestyle &amp; Health</label><select value={data.lifestyle || ''} onChange={(e) => onChange({ lifestyle: e.target.value })} className={cls}><option value="">— Select —</option>{LIFESTYLE_TAGS.map(opt)}</select></div>
+      <div className="space-y-1.5"><label className={labelCls}>Employment Status</label><select value={data.employmentStatus || ''} onChange={(e) => onChange({ employmentStatus: e.target.value })} className={cls}><option value="">— Select —</option>{EMPLOYMENT_STATUSES.map(opt)}</select></div>
+      <div className="space-y-1.5"><label className={labelCls}>Job Type / Occupation</label><input type="text" value={data.jobType || ''} onChange={(e) => onChange({ jobType: e.target.value })} placeholder="e.g. Trader, Teacher" className={cls} /></div>
+      <div className="space-y-1.5 sm:col-span-2"><label className={labelCls}>Religion</label><select value={data.religion || ''} onChange={(e) => onChange({ religion: e.target.value })} className={cls}><option value="">— Select —</option>{RELIGIONS.map(opt)}</select></div>
+    </div>
+  );
+}
+
+function clearOppositeProfileFields(type: CustomerType): Partial<Customer> {
+  if (type === CustomerType.B2B) {
+    return {
+      familyType: undefined,
+      maritalStatus: undefined,
+      ageGroup: undefined,
+      lifestyle: undefined,
+      employmentStatus: undefined,
+      jobType: undefined,
+      religion: undefined,
+    };
+  }
+  return { businessCategory: undefined };
+}
 
 function buildCustomerImportSummaryRows(
   validationRows: CustomerImportPreviewRow[],
@@ -103,7 +173,6 @@ export default function CustomersPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
   const { data: segments = [] } = useSegments();
-  const createSegment = useCreateSegment();
   const segmentId = filterSegment === 'All'
     ? undefined
     : segments.find((s) => s.name === filterSegment)?.id;
@@ -145,7 +214,10 @@ export default function CustomersPage() {
   };
   const { data: agents = [] } = useAgents(undefined, { enabled: showAddModal });
   const detailDataEnabled = !!selectedCustomer;
-  const { data: salesList } = useSales(undefined, { enabled: detailDataEnabled });
+  const { data: salesList } = useSales(
+    { customer_id: selectedCustomer?.id, limit: 200, exclude_voided: true },
+    { enabled: !!selectedCustomer },
+  );
   const sales = salesList?.items ?? [];
   const { data: feedback = [] } = useFeedback(undefined, { enabled: detailDataEnabled });
   const { data: enquiries = [] } = useEnquiries(undefined, { enabled: detailDataEnabled });
@@ -164,8 +236,7 @@ export default function CustomersPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Customer>>({});
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [newSegmentInput, setNewSegmentInput] = useState('');
-  const [editSegmentInput, setEditSegmentInput] = useState('');
+  const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [customerImportPreview, setCustomerImportPreview] = useState<CustomerImportPreviewRow[]>([]);
   const [customerImportValidateSummary, setCustomerImportValidateSummary] = useState<{
     total: number;
@@ -186,55 +257,9 @@ export default function CustomersPage() {
     rows: CustomerImportSummaryRow[];
   } | null>(null);
 
-  const allSegments = useMemo(() => {
-    const fromApi = segments.map((s) => s.name);
-    const merged = [...PREDEFINED_SEGMENTS, ...fromApi];
-    return Array.from(new Set(merged)).sort((a, b) =>
-      a.localeCompare(b, undefined, { sensitivity: 'base' }),
-    );
-  }, [segments]);
-
-  const resolveSegmentIds = async (names: string[]): Promise<string[]> => {
-    const catalog = [...segments];
-    const ids: string[] = [];
-    for (const name of names) {
-      const trimmed = name.trim();
-      if (!trimmed) continue;
-      let found = catalog.find((s) => s.name.toLowerCase() === trimmed.toLowerCase());
-      if (!found) {
-        found = await createSegment.mutateAsync({ name: trimmed });
-        catalog.push(found);
-      }
-      ids.push(found.id);
-    }
-    return ids;
-  };
-
-  const addCustomSegment = async (name: string, target: 'add' | 'edit') => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    if (allSegments.some((s) => s.toLowerCase() === trimmed.toLowerCase())) {
-      toast.error(`Segment "${trimmed}" already exists.`);
-      return;
-    }
-    try {
-      await createSegment.mutateAsync({ name: trimmed });
-      if (target === 'add') {
-        setNewCustomer((prev) => ({ ...prev, segments: [...(prev.segments || []), trimmed] }));
-        setNewSegmentInput('');
-      } else {
-        setEditForm((prev) => ({ ...prev, segments: [...(prev.segments || []), trimmed] }));
-        setEditSegmentInput('');
-      }
-      toast.success(`Segment "${trimmed}" created.`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create segment.');
-    }
-  };
-
   const [newCustomer, setNewCustomer] = useState<Partial<Customer>>({
     name: '', email: '', phone: '', companyName: '', type: CustomerType.B2C,
-    location: hubScope.hubName || hubScope.defaultHubName || 'Lagos', segments: [], totalOrders: 0, totalSpent: 0,
+    location: hubScope.hubName || hubScope.defaultHubName || 'Lagos', totalOrders: 0, totalSpent: 0,
   });
 
   // --- Helpers ---
@@ -293,33 +318,31 @@ export default function CustomersPage() {
       if (dup) { toast.error(`A customer with email "${newCustomer.email}" already exists.`); return; }
     }
     const hub = activeHubs.find((h) => h.name === (newCustomer.location || activeHubs[0]?.name));
-    try {
-      const segmentIds = await resolveSegmentIds(newCustomer.segments || []);
-      createCustomer.mutate({
-        customer_name: newCustomer.name!,
-        customer_email: newCustomer.email!,
-        customer_phone: customerPhoneForApi(newCustomer.phone),
-        customer_type: newCustomer.type as CustomerType,
-        customer_location: hub?.id || activeHubs[0]?.id || '',
-        company_name: newCustomer.companyName,
-        assigned_agent: newCustomer.addedByAgentId,
-        segments: segmentIds,
-      }, {
-        onSuccess: () => {
-          setShowAddModal(false);
-          setNewCustomer({ name: '', email: '', phone: '', companyName: '', type: CustomerType.B2C, location: hubScope.hubName || hubScope.defaultHubName || activeHubs[0]?.name || 'Lagos', segments: [], totalOrders: 0, totalSpent: 0 });
-          toast.success('Customer added.');
-        },
-        onError: (err) => toast.error(err.message),
-      });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to resolve segments.');
-    }
-  };
-
-  const toggleSegment = (segment: string) => {
-    const current = newCustomer.segments || [];
-    setNewCustomer({ ...newCustomer, segments: current.includes(segment) ? current.filter((s) => s !== segment) : [...current, segment] });
+    const isB2b = isB2bCustomerType(newCustomer.type);
+    createCustomer.mutate({
+      customer_name: newCustomer.name!,
+      customer_email: newCustomer.email!,
+      customer_phone: customerPhoneForApi(newCustomer.phone),
+      customer_type: newCustomer.type as CustomerType,
+      customer_location: hub?.id || activeHubs[0]?.id || '',
+      company_name: newCustomer.companyName,
+      assigned_agent: newCustomer.addedByAgentId,
+      business_category: isB2b ? newCustomer.businessCategory : undefined,
+      family_type: !isB2b ? newCustomer.familyType : undefined,
+      marital_status: !isB2b ? newCustomer.maritalStatus : undefined,
+      age_group: !isB2b ? newCustomer.ageGroup : undefined,
+      lifestyle: !isB2b ? newCustomer.lifestyle : undefined,
+      employment_status: !isB2b ? newCustomer.employmentStatus : undefined,
+      job_type: !isB2b ? newCustomer.jobType : undefined,
+      religion: !isB2b ? newCustomer.religion : undefined,
+    }, {
+      onSuccess: () => {
+        setShowAddModal(false);
+        setNewCustomer({ name: '', email: '', phone: '', companyName: '', type: CustomerType.B2C, location: hubScope.hubName || hubScope.defaultHubName || activeHubs[0]?.name || 'Lagos', totalOrders: 0, totalSpent: 0 });
+        toast.success('Customer added.');
+      },
+      onError: (err) => toast.error(err.message),
+    });
   };
 
   // --- Edit Customer ---
@@ -336,40 +359,38 @@ export default function CustomersPage() {
       return;
     }
     const hub = activeHubs.find((h) => h.name === editForm.location);
-    try {
-      const segmentIds = await resolveSegmentIds(editForm.segments || []);
-      updateCustomer.mutate({
-        id: selectedCustomer.id,
-        customer_name: editForm.name,
-        customer_email: editForm.email,
-        customer_phone: customerPhoneForApi(editForm.phone),
-        customer_type: editForm.type,
-        customer_location: hub?.id,
-        company_name: editForm.companyName,
-        segments: segmentIds,
-      }, {
-        onSuccess: (updated) => {
-          setSelectedCustomer(updated);
-          setIsEditing(false);
-          toast.success('Customer updated.');
-        },
-        onError: (err) => toast.error(err.message),
-      });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to resolve segments.');
-    }
-  };
-
-  const toggleEditSegment = (segment: string) => {
-    const current = editForm.segments || [];
-    setEditForm({ ...editForm, segments: current.includes(segment) ? current.filter((s) => s !== segment) : [...current, segment] });
+    const isB2b = isB2bCustomerType(editForm.type);
+    updateCustomer.mutate({
+      id: selectedCustomer.id,
+      customer_name: editForm.name,
+      customer_email: editForm.email,
+      customer_phone: customerPhoneForApi(editForm.phone),
+      customer_type: editForm.type,
+      customer_location: hub?.id,
+      company_name: editForm.companyName,
+      business_category: isB2b ? editForm.businessCategory : undefined,
+      family_type: !isB2b ? editForm.familyType : undefined,
+      marital_status: !isB2b ? editForm.maritalStatus : undefined,
+      age_group: !isB2b ? editForm.ageGroup : undefined,
+      lifestyle: !isB2b ? editForm.lifestyle : undefined,
+      employment_status: !isB2b ? editForm.employmentStatus : undefined,
+      job_type: !isB2b ? editForm.jobType : undefined,
+      religion: !isB2b ? editForm.religion : undefined,
+    }, {
+      onSuccess: (updated) => {
+        setSelectedCustomer(updated);
+        setIsEditing(false);
+        toast.success('Customer updated.');
+      },
+      onError: (err) => toast.error(err.message),
+    });
   };
 
   // --- Customer detail data ---
   const customerSales = useMemo(() => {
     if (!selectedCustomer) return [];
     return sales
-      .filter((s) => s.customerId === selectedCustomer.id || s.customerName === selectedCustomer.name)
+      .filter((s) => s.customerId === selectedCustomer.id)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [selectedCustomer, sales]);
 
@@ -428,10 +449,83 @@ export default function CustomersPage() {
     };
   }, [customerSales]);
 
+  const DAY = 86_400_000;
+  const purchaseAnalytics = useMemo(() => {
+    if (customerSales.length === 0) return null;
+    const asc = [...customerSales].sort((a, b) => (a.date < b.date ? -1 : 1));
+    const n = asc.length;
+    const now = Date.now();
+    const totalSpent = asc.reduce((a, s) => a + s.amount, 0);
+    const totalProfit = asc.reduce((a, s) => a + (s.profitAmount || 0), 0);
+    const aov = totalSpent / n;
+    const avgMargin = totalSpent > 0 ? (totalProfit / totalSpent) * 100 : 0;
+    const lastMs = new Date(asc[n - 1].date).getTime();
+    const firstMs = new Date(asc[0].date).getTime();
+    const daysSinceLast = Math.max(0, Math.floor((now - lastMs) / DAY));
+    const tenureDays = Math.max(1, Math.floor((lastMs - firstMs) / DAY));
+
+    const intervals: number[] = [];
+    for (let i = 1; i < n; i++) intervals.push((new Date(asc[i].date).getTime() - new Date(asc[i - 1].date).getTime()) / DAY);
+    const avgInterval = intervals.length ? intervals.reduce((a, b) => a + b, 0) / intervals.length : 0;
+    let regularity = 'Single order';
+    if (intervals.length === 1) regularity = 'New';
+    else if (intervals.length >= 2) {
+      const mean = avgInterval;
+      const cv = mean > 0 ? Math.sqrt(intervals.reduce((a, b) => a + (b - mean) ** 2, 0) / intervals.length) / mean : 0;
+      regularity = cv < 0.45 ? 'Regular' : cv < 0.85 ? 'Semi-regular' : 'Sporadic';
+    }
+    const ordersPerMonth = n / Math.max(1, tenureDays / 30);
+
+    const recent = asc.filter((s) => now - new Date(s.date).getTime() <= 90 * DAY).reduce((a, s) => a + s.amount, 0);
+    const prior = asc.filter((s) => { const d = now - new Date(s.date).getTime(); return d > 90 * DAY && d <= 180 * DAY; }).reduce((a, s) => a + s.amount, 0);
+    let trend: 'Growing' | 'Stable' | 'Declining' = 'Stable';
+    let trendPct = 0;
+    if (prior > 0) { trendPct = Math.round(((recent - prior) / prior) * 100); trend = trendPct > 15 ? 'Growing' : trendPct < -15 ? 'Declining' : 'Stable'; }
+    else if (recent > 0) { trend = 'Growing'; trendPct = 100; }
+
+    let activity: 'Active' | 'At Risk' | 'Dormant' = 'Active';
+    if (avgInterval > 0) { if (daysSinceLast > avgInterval * 3) activity = 'Dormant'; else if (daysSinceLast > avgInterval * 1.8) activity = 'At Risk'; }
+    else if (daysSinceLast > 90) activity = 'Dormant';
+    const nextExpected = avgInterval > 0 ? new Date(lastMs + avgInterval * DAY) : null;
+
+    const channelCounts: Record<string, number> = {};
+    asc.forEach((s) => { const ch = s.channel || 'Unspecified'; channelCounts[ch] = (channelCounts[ch] || 0) + 1; });
+    const preferredChannel = Object.entries(channelCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
+    const creditCount = asc.filter((s) => s.isCredit).length;
+    const biggest = asc.reduce((m, s) => (s.amount > m.amount ? s : m), asc[0]);
+
+    let rec = { tone: 'neutral' as 'good' | 'warn' | 'neutral', text: '' };
+    if (activity === 'Dormant') rec = { tone: 'warn', text: `No order in ${daysSinceLast} days (usually every ~${Math.round(avgInterval) || '—'}). Win-back outreach recommended.` };
+    else if (activity === 'At Risk') rec = { tone: 'warn', text: `Overdue for a reorder — ${daysSinceLast} days since last vs ~${Math.round(avgInterval)}-day cadence. Follow up now.` };
+    else if (trend === 'Growing' && totalSpent >= 200000) rec = { tone: 'good', text: `Spend up ${trendPct}% recently — strong account. Upsell higher-margin lines or offer priority delivery.` };
+    else if (regularity === 'Regular') rec = { tone: 'good', text: `Predictable buyer (~every ${Math.round(avgInterval)} days). Good candidate for a standing order or subscription.` };
+    else if (trend === 'Declining') rec = { tone: 'warn', text: `Spend down ${Math.abs(trendPct)}% vs prior quarter. Check satisfaction and re-engage.` };
+    else rec = { tone: 'neutral', text: `${regularity} buyer, ${activity.toLowerCase()}. Nurture toward a regular cadence.` };
+
+    return { n, totalSpent, totalProfit, aov, avgMargin, daysSinceLast, avgInterval, regularity, ordersPerMonth, trend, trendPct, activity, nextExpected, preferredChannel, creditCount, cashCount: n - creditCount, biggest, firstDate: asc[0].date, lastDate: asc[n - 1].date, rec };
+  }, [customerSales]);
+
+  const customerProducts = useMemo(() => {
+    const map: Record<string, { itemName: string; uom: string; qty: number; revenue: number; orders: number }> = {};
+    customerSales.forEach((s) => {
+      const name = s.item?.productName || s.productDetails || 'Sale';
+      const qty = s.item?.quantity ?? 1;
+      const uom = s.item?.unit || s.item?.saleUnit || '';
+      const e = map[name] || { itemName: name, uom, qty: 0, revenue: 0, orders: 0 };
+      e.qty += qty;
+      e.revenue += s.amount;
+      e.orders += 1;
+      if (!e.uom && uom) e.uom = uom;
+      map[name] = e;
+    });
+    return Object.values(map).sort((a, b) => b.revenue - a.revenue);
+  }, [customerSales]);
+
   const handleViewDetails = (customer: Customer) => {
     setSelectedCustomer(customer);
     setDetailTab('overview');
     setIsEditing(false);
+    setExpandedSaleId(null);
   };
 
   const handleCustomerImportFile = (file?: File) => {
@@ -721,7 +815,7 @@ export default function CustomersPage() {
               <div className="space-y-2"><label className="text-sm font-medium">Full Name *</label><input type="text" value={newCustomer.name} onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" /></div>
               <div className="space-y-2"><label className="text-sm font-medium">Email *</label><input type="email" value={newCustomer.email} onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" /></div>
               <div className="space-y-2"><label className="text-sm font-medium">Phone</label><input type="text" value={newCustomer.phone} onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" /></div>
-              <div className="space-y-2"><label className="text-sm font-medium">Type</label><select value={newCustomer.type} onChange={(e) => { const type = e.target.value as CustomerType; setNewCustomer({ ...newCustomer, type, companyName: type === CustomerType.B2C ? '' : newCustomer.companyName }); }} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"><option value={CustomerType.B2C}>B2C</option><option value={CustomerType.B2B}>B2B</option></select></div>
+              <div className="space-y-2"><label className="text-sm font-medium">Type</label><select value={newCustomer.type} onChange={(e) => { const type = e.target.value as CustomerType; setNewCustomer({ ...newCustomer, type, companyName: type === CustomerType.B2C ? '' : newCustomer.companyName, ...clearOppositeProfileFields(type) }); }} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"><option value={CustomerType.B2C}>B2C</option><option value={CustomerType.B2B}>B2B</option></select></div>
               {isB2bCustomerType(newCustomer.type) && (
                 <div className="space-y-2"><label className="text-sm font-medium">Company *</label><input type="text" value={newCustomer.companyName} onChange={(e) => setNewCustomer({ ...newCustomer, companyName: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" /></div>
               )}
@@ -734,50 +828,23 @@ export default function CustomersPage() {
               </div>
               <div className="space-y-2"><label className="text-sm font-medium">Assigned Agent</label><select value={newCustomer.addedByAgentId || ''} onChange={(e) => setNewCustomer({ ...newCustomer, addedByAgentId: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"><option value="">-- Select --</option>{agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
             </div>
-            <div className="mt-4 space-y-2 md:col-span-2">
-              <label className="text-sm font-medium">Segments</label>
-              {/* Selected segments */}
-              {(newCustomer.segments?.length || 0) > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {newCustomer.segments!.map((seg) => (
-                    <span key={seg} className="inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-2.5 py-1 text-xs font-medium">
-                      {seg}
-                      <button onClick={() => toggleSegment(seg)} className="ml-0.5 hover:bg-primary-foreground/20 rounded-full p-0.5"><X size={10} /></button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              {/* Dropdown to pick existing segment */}
-              <div className="flex gap-2">
-                <select
-                  value=""
-                  onChange={(e) => { if (e.target.value) toggleSegment(e.target.value); }}
-                  className="flex h-10 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Select a segment...</option>
-                  {allSegments.filter((s) => !newCustomer.segments?.includes(s)).map((seg) => (
-                    <option key={seg} value={seg}>{seg}</option>
-                  ))}
-                </select>
-              </div>
-              {/* Add new segment inline */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="New segment name..."
-                  value={newSegmentInput}
-                  onChange={(e) => setNewSegmentInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomSegment(newSegmentInput, 'add'); } }}
-                  className="flex h-9 flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <button
-                  onClick={() => addCustomSegment(newSegmentInput, 'add')}
-                  disabled={!newSegmentInput.trim()}
-                  className="inline-flex items-center gap-1.5 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-3 disabled:opacity-50 disabled:pointer-events-none"
-                >
-                  <Plus size={12} /> Add Segment
-                </button>
-              </div>
+            <div className="mt-4 space-y-3 border-t pt-4">
+              <label className="text-sm font-semibold flex items-center gap-1.5">
+                {newCustomer.type === CustomerType.B2B ? <Building2 size={15} className="text-blue-600" /> : <User size={15} className="text-purple-600" />}
+                {newCustomer.type === CustomerType.B2B ? 'Business Profile' : 'Consumer Profile'}
+              </label>
+              <ProfileFields type={(newCustomer.type as CustomerType) || CustomerType.B2C} data={newCustomer} onChange={(patch) => setNewCustomer({ ...newCustomer, ...patch })} />
+            </div>
+            <div className="mt-4 space-y-2 rounded-lg border bg-muted/20 p-3">
+              <label className="text-sm font-medium flex items-center gap-1.5"><Sparkles size={14} className="text-primary" /> Auto Segments <span className="text-[11px] font-normal text-muted-foreground">— generated from the profile above</span></label>
+              {(() => {
+                const preview = deriveSegments({ ...newCustomer, id: 'preview', segments: [], totalOrders: newCustomer.totalOrders || 0, totalSpent: newCustomer.totalSpent || 0 } as Customer);
+                return preview.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {preview.map((seg) => <span key={seg} className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${segClass(seg)}`}>{seg}</span>)}
+                  </div>
+                ) : <p className="text-xs text-muted-foreground">Fill in the profile to generate segments.</p>;
+              })()}
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setShowAddModal(false)} className="inline-flex items-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent h-9 px-4 py-2">Cancel</button>
@@ -980,6 +1047,42 @@ export default function CustomersPage() {
                     )}
                   </div>
 
+                  {/* Type-specific profile */}
+                  <div>
+                    <h4 className="text-xs font-bold uppercase text-muted-foreground mb-2 flex items-center gap-1.5">
+                      {selectedCustomer.type === CustomerType.B2B ? <Building2 size={12} /> : <User size={12} />}
+                      {selectedCustomer.type === CustomerType.B2B ? 'Business Profile' : 'Consumer Profile'}
+                    </h4>
+                    {(() => {
+                      const rows = selectedCustomer.type === CustomerType.B2B
+                        ? [{ icon: Tag, label: 'Category', value: selectedCustomer.businessCategory }]
+                        : [
+                            { icon: Home, label: 'Family Type', value: selectedCustomer.familyType },
+                            { icon: Heart, label: 'Marital Status', value: selectedCustomer.maritalStatus },
+                            { icon: Cake, label: 'Age Group', value: selectedCustomer.ageGroup },
+                            { icon: HeartPulse, label: 'Lifestyle & Health', value: selectedCustomer.lifestyle },
+                            { icon: Briefcase, label: 'Employment', value: selectedCustomer.employmentStatus },
+                            { icon: Briefcase, label: 'Job Type', value: selectedCustomer.jobType },
+                            { icon: Church, label: 'Religion', value: selectedCustomer.religion },
+                          ];
+                      const filled = rows.filter((r) => r.value);
+                      if (filled.length === 0) return <p className="text-xs text-muted-foreground/60 border rounded-lg p-3">No profile details captured yet — use Edit to add them.</p>;
+                      return (
+                        <div className="grid grid-cols-2 gap-2">
+                          {filled.map((r) => {
+                            const Icon = r.icon;
+                            return (
+                              <div key={r.label} className="flex items-center gap-2 p-2.5 rounded-lg border bg-muted/20">
+                                <Icon size={14} className="text-muted-foreground shrink-0" />
+                                <div className="min-w-0"><p className="text-[10px] font-bold uppercase text-muted-foreground">{r.label}</p><p className="text-sm font-medium truncate">{r.value}</p></div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
                   {/* KPI Cards */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-4 rounded-xl border bg-muted/20">
@@ -1000,17 +1103,22 @@ export default function CustomersPage() {
                     </div>
                   </div>
 
-                  {/* Segments */}
-                  {selectedCustomer.segments && selectedCustomer.segments.length > 0 && (
-                    <div>
-                      <h4 className="text-xs font-bold uppercase text-muted-foreground mb-2">Segments</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedCustomer.segments.map((seg) => (
-                          <span key={seg} className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium">{seg}</span>
-                        ))}
+                  {/* Auto Segments */}
+                  {(() => {
+                    const segs = deriveSegments(selectedCustomer);
+                    return (
+                      <div>
+                        <h4 className="text-xs font-bold uppercase text-muted-foreground mb-2 flex items-center gap-1.5"><Sparkles size={12} className="text-primary" /> Auto Segments <span className="font-normal normal-case text-muted-foreground/70">· generated from profile</span></h4>
+                        {segs.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {segs.map((seg) => (
+                              <span key={seg} className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${segClass(seg)}`}>{seg}</span>
+                            ))}
+                          </div>
+                        ) : <p className="text-xs text-muted-foreground/60">No segments yet — add profile details to generate them.</p>}
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Quick Spending Trend */}
                   {spendingTrend.length > 1 && (
@@ -1056,7 +1164,7 @@ export default function CustomersPage() {
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Type</label>
-                      <select value={editForm.type || CustomerType.B2C} onChange={(e) => { const type = e.target.value as CustomerType; setEditForm({ ...editForm, type, companyName: type === CustomerType.B2C ? '' : editForm.companyName }); }} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm">
+                      <select value={editForm.type || CustomerType.B2C} onChange={(e) => { const type = e.target.value as CustomerType; setEditForm({ ...editForm, type, companyName: type === CustomerType.B2C ? '' : editForm.companyName, ...clearOppositeProfileFields(type) }); }} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm">
                         <option value={CustomerType.B2C}>B2C</option><option value={CustomerType.B2B}>B2B</option>
                       </select>
                     </div>
@@ -1075,48 +1183,23 @@ export default function CustomersPage() {
                       </select>
                     </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">Segments</label>
-                    {/* Selected segments */}
-                    {(editForm.segments?.length || 0) > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mb-2">
-                        {editForm.segments!.map((seg) => (
-                          <span key={seg} className="inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-2.5 py-1 text-xs font-medium">
-                            {seg}
-                            <button onClick={() => toggleEditSegment(seg)} className="ml-0.5 hover:bg-primary-foreground/20 rounded-full p-0.5"><X size={10} /></button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {/* Dropdown */}
-                    <select
-                      value=""
-                      onChange={(e) => { if (e.target.value) toggleEditSegment(e.target.value); }}
-                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    >
-                      <option value="">Select a segment...</option>
-                      {allSegments.filter((s) => !editForm.segments?.includes(s)).map((seg) => (
-                        <option key={seg} value={seg}>{seg}</option>
-                      ))}
-                    </select>
-                    {/* Add new segment */}
-                    <div className="flex gap-2 mt-1.5">
-                      <input
-                        type="text"
-                        placeholder="New segment name..."
-                        value={editSegmentInput}
-                        onChange={(e) => setEditSegmentInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomSegment(editSegmentInput, 'edit'); } }}
-                        className="flex h-8 flex-1 rounded-md border border-input bg-background px-3 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                      <button
-                        onClick={() => addCustomSegment(editSegmentInput, 'edit')}
-                        disabled={!editSegmentInput.trim()}
-                        className="inline-flex items-center gap-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 h-8 px-2.5 disabled:opacity-50 disabled:pointer-events-none"
-                      >
-                        <Plus size={11} /> Add
-                      </button>
-                    </div>
+                  <div className="space-y-2 border-t pt-3">
+                    <label className="text-xs font-semibold flex items-center gap-1.5">
+                      {editForm.type === CustomerType.B2B ? <Building2 size={13} className="text-blue-600" /> : <User size={13} className="text-purple-600" />}
+                      {editForm.type === CustomerType.B2B ? 'Business Profile' : 'Consumer Profile'}
+                    </label>
+                    <ProfileFields type={(editForm.type as CustomerType) || CustomerType.B2C} data={editForm} onChange={(patch) => setEditForm({ ...editForm, ...patch })} dense />
+                  </div>
+                  <div className="space-y-1.5 rounded-lg border bg-muted/20 p-3">
+                    <label className="text-xs font-medium flex items-center gap-1.5"><Sparkles size={12} className="text-primary" /> Auto Segments <span className="font-normal text-muted-foreground">— update as you edit the profile</span></label>
+                    {(() => {
+                      const preview = deriveSegments({ ...selectedCustomer, ...editForm } as Customer);
+                      return preview.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {preview.map((seg) => <span key={seg} className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${segClass(seg)}`}>{seg}</span>)}
+                        </div>
+                      ) : <p className="text-xs text-muted-foreground">Fill in the profile to generate segments.</p>;
+                    })()}
                   </div>
                   <div className="flex justify-end gap-3 pt-2">
                     <button onClick={() => setIsEditing(false)} className="inline-flex items-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent h-9 px-4 py-2">Cancel</button>
@@ -1129,109 +1212,148 @@ export default function CustomersPage() {
 
               {/* ===== PURCHASES TAB ===== */}
               {detailTab === 'purchases' && (
-                <div className="space-y-5">
-                  {/* Purchase summary cards */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="p-3 rounded-lg border bg-muted/20 text-center">
-                      <p className="text-[10px] font-bold uppercase text-muted-foreground">Total Purchases</p>
-                      <p className="text-xl font-black">{customerSales.length}</p>
-                    </div>
-                    <div className="p-3 rounded-lg border bg-muted/20 text-center">
-                      <p className="text-[10px] font-bold uppercase text-muted-foreground">Cash Sales</p>
-                      <p className="text-lg font-black text-green-600">{creditSaleStats.cashCount}</p>
-                      <p className="text-[10px] text-muted-foreground">&#8358;{creditSaleStats.cashTotal.toLocaleString()}</p>
-                    </div>
-                    <div className="p-3 rounded-lg border bg-muted/20 text-center">
-                      <p className="text-[10px] font-bold uppercase text-muted-foreground">Credit Sales</p>
-                      <p className="text-lg font-black text-orange-600">{creditSaleStats.creditCount}</p>
-                      <p className="text-[10px] text-muted-foreground">&#8358;{creditSaleStats.creditTotal.toLocaleString()}</p>
-                    </div>
+                customerSales.length === 0 || !purchaseAnalytics ? (
+                  <div className="p-8 text-center text-muted-foreground border rounded-lg">
+                    <ShoppingCart size={32} className="mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">No purchases recorded yet.</p>
                   </div>
-
-                  {/* Spending trend chart */}
-                  {spendingTrend.length > 1 && (
-                    <div>
-                      <h4 className="text-xs font-bold uppercase text-muted-foreground mb-2">Monthly Spending</h4>
-                      <div className="h-40 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={spendingTrend}>
-                            <defs>
-                              <linearGradient id="spendGradPurchase" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                              </linearGradient>
-                            </defs>
-                            <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                            <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
-                            <RechartsTooltip formatter={(value) => [`₦${Number(value).toLocaleString()}`, 'Spent']} />
-                            <Area type="monotone" dataKey="amount" stroke="hsl(var(--primary))" fill="url(#spendGradPurchase)" strokeWidth={2} />
-                          </AreaChart>
-                        </ResponsiveContainer>
+                ) : (() => {
+                  const pa = purchaseAnalytics;
+                  const actClr = pa.activity === 'Active' ? 'bg-green-100 text-green-700 border-green-200' : pa.activity === 'At Risk' ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-red-100 text-red-700 border-red-200';
+                  const recClr = pa.rec.tone === 'good' ? 'border-green-200 bg-green-50/60 text-green-800' : pa.rec.tone === 'warn' ? 'border-orange-200 bg-orange-50/60 text-orange-800' : 'border-border bg-muted/30 text-foreground';
+                  const chIcon = (ch?: string) => ch === 'Delivery' ? <Truck size={11} /> : ch === 'Pre-Order' ? <Clock size={11} /> : <Package size={11} />;
+                  return (
+                  <div className="space-y-5">
+                    <div className={`flex items-start gap-2.5 rounded-xl border p-3 ${recClr}`}>
+                      <Sparkles size={16} className="mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">Recommended Action</p>
+                        <p className="text-sm font-medium leading-snug">{pa.rec.text}</p>
                       </div>
                     </div>
-                  )}
 
-                  {/* Full purchase history list */}
-                  <div>
-                    <h4 className="text-xs font-bold uppercase text-muted-foreground mb-3">All Purchases ({customerSales.length})</h4>
-                    {customerSales.length === 0 ? (
-                      <div className="p-8 text-center text-muted-foreground border rounded-lg">
-                        <ShoppingCart size={32} className="mx-auto mb-2 opacity-40" />
-                        <p className="text-sm">No purchases recorded yet.</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="p-3 rounded-xl border bg-muted/20"><p className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1"><Wallet size={11} /> Lifetime Value</p><p className="text-lg font-black">&#8358;{Math.round(pa.totalSpent).toLocaleString()}</p></div>
+                      <div className="p-3 rounded-xl border bg-muted/20"><p className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1"><TrendingUp size={11} /> Profit</p><p className="text-lg font-black text-green-700">&#8358;{Math.round(pa.totalProfit).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">{pa.avgMargin.toFixed(0)}% margin</p></div>
+                      <div className="p-3 rounded-xl border bg-muted/20"><p className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1"><ShoppingCart size={11} /> Avg Order</p><p className="text-lg font-black">&#8358;{Math.round(pa.aov).toLocaleString()}</p><p className="text-[10px] text-muted-foreground">{pa.n} order{pa.n !== 1 ? 's' : ''}</p></div>
+                      <div className="p-3 rounded-xl border bg-muted/20"><p className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1"><Repeat size={11} /> Frequency</p><p className="text-lg font-black">{pa.avgInterval > 0 ? `~${Math.round(pa.avgInterval)}d` : '—'}</p><p className="text-[10px] text-muted-foreground">{pa.ordersPerMonth.toFixed(1)}/mo</p></div>
+                      <div className="p-3 rounded-xl border bg-muted/20"><p className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1"><Timer size={11} /> Recency</p><p className="text-lg font-black">{pa.daysSinceLast}d ago</p><span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold border ${actClr}`}>{pa.activity}</span></div>
+                      <div className="p-3 rounded-xl border bg-muted/20"><p className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1">{pa.trend === 'Declining' ? <TrendingDown size={11} /> : <TrendingUp size={11} />} Trend (90d)</p><p className={`text-lg font-black ${pa.trend === 'Growing' ? 'text-green-700' : pa.trend === 'Declining' ? 'text-red-600' : ''}`}>{pa.trend}</p><p className="text-[10px] text-muted-foreground">{pa.trendPct > 0 ? '+' : ''}{pa.trendPct}% vs prior</p></div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold uppercase text-muted-foreground mb-2 flex items-center gap-1.5"><Activity size={12} /> Purchase Pattern</h4>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="flex items-center justify-between p-2.5 rounded-lg border"><span className="text-muted-foreground flex items-center gap-1.5"><Gauge size={13} /> Cadence</span><span className="font-semibold">{pa.regularity}</span></div>
+                        <div className="flex items-center justify-between p-2.5 rounded-lg border"><span className="text-muted-foreground flex items-center gap-1.5">{chIcon(pa.preferredChannel)} Top Channel</span><span className="font-semibold">{pa.preferredChannel}</span></div>
+                        <div className="flex items-center justify-between p-2.5 rounded-lg border"><span className="text-muted-foreground flex items-center gap-1.5"><CreditCard size={13} /> Cash / Credit</span><span className="font-semibold">{pa.cashCount} / {pa.creditCount}</span></div>
+                        <div className="flex items-center justify-between p-2.5 rounded-lg border"><span className="text-muted-foreground flex items-center gap-1.5"><Calendar size={13} /> Next expected</span><span className="font-semibold">{pa.nextExpected ? pa.nextExpected.toISOString().slice(0, 10) : '—'}</span></div>
+                        <div className="flex items-center justify-between p-2.5 rounded-lg border col-span-2"><span className="text-muted-foreground flex items-center gap-1.5"><Flame size={13} /> Biggest order</span><span className="font-semibold">&#8358;{pa.biggest.amount.toLocaleString()} · {pa.biggest.date}</span></div>
                       </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {customerSales.map((sale) => (
-                          <div key={sale.id} className="p-3 rounded-lg border hover:bg-muted/30 transition-colors">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-sm font-medium truncate">{sale.productDetails || 'Sale'}</span>
-                                  {sale.isCredit && (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-700 border border-orange-200">
-                                      <CreditCard size={10} /> Credit
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                                  <span className="inline-flex items-center gap-1"><Calendar size={10} /> {sale.date}</span>
-                                  {sale.channel && <span className="inline-flex items-center gap-1">{sale.channel === 'Delivery' ? <Truck size={10} /> : sale.channel === 'Pre-Order' ? <Clock size={10} /> : <Package size={10} />} {sale.channel}</span>}
-                                  <span>{sale.agentName}</span>
-                                </div>
-                                {sale.deliveryStatus && sale.deliveryStatus !== 'N/A' && (
-                                  <div className="mt-1">
-                                    <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                                      sale.deliveryStatus === 'Delivered' || sale.deliveryStatus === 'Confirmed by Customer' ? 'bg-green-100 text-green-700' :
-                                      sale.deliveryStatus === 'In Transit' ? 'bg-blue-100 text-blue-700' :
-                                      'bg-yellow-100 text-yellow-700'
-                                    }`}>
-                                      <Truck size={10} /> {sale.deliveryStatus}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="text-right shrink-0">
-                                <p className="text-sm font-bold">&#8358;{sale.amount.toLocaleString()}</p>
-                                <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                                  sale.status === 'Paid' ? 'bg-green-100 text-green-700' :
-                                  sale.status === 'Approved' ? 'bg-blue-100 text-blue-700' :
-                                  'bg-yellow-100 text-yellow-700'
-                                }`}>{sale.status}</span>
-                              </div>
-                            </div>
-                            {sale.notes && <p className="text-xs text-muted-foreground mt-2 italic border-t pt-2">{sale.notes}</p>}
-                          </div>
-                        ))}
+                    </div>
 
-                        {/* Running total */}
-                        <div className="p-3 rounded-lg border-2 border-dashed bg-muted/10 flex justify-between items-center">
-                          <span className="text-sm font-medium text-muted-foreground">Total from {customerSales.length} purchase{customerSales.length !== 1 ? 's' : ''}</span>
-                          <span className="text-lg font-black">&#8358;{customerSales.reduce((a, s) => a + s.amount, 0).toLocaleString()}</span>
+                    {spendingTrend.length > 1 && (
+                      <div>
+                        <h4 className="text-xs font-bold uppercase text-muted-foreground mb-2">Monthly Spending</h4>
+                        <div className="h-36 w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={spendingTrend}>
+                              <defs><linearGradient id="spendGradPurchase" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} /><stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} /></linearGradient></defs>
+                              <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                              <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
+                              <RechartsTooltip formatter={(value) => [`₦${Number(value).toLocaleString()}`, 'Spent']} />
+                              <Area type="monotone" dataKey="amount" stroke="hsl(var(--primary))" fill="url(#spendGradPurchase)" strokeWidth={2} />
+                            </AreaChart>
+                          </ResponsiveContainer>
                         </div>
                       </div>
                     )}
+
+                    {customerProducts.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-bold uppercase text-muted-foreground mb-2 flex items-center gap-1.5"><Boxes size={12} /> Most Bought Products</h4>
+                        <div className="space-y-1.5">
+                          {customerProducts.slice(0, 5).map((p) => (
+                            <div key={p.itemName} className="flex items-center justify-between p-2.5 rounded-lg border text-sm">
+                              <span className="font-medium">{p.itemName}</span>
+                              <span className="text-muted-foreground text-xs">{p.qty}{p.uom ? ` ${p.uom}` : ''} · <span className="font-semibold text-foreground">&#8358;{Math.round(p.revenue).toLocaleString()}</span></span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-xs font-bold uppercase text-muted-foreground">All Purchases ({customerSales.length})</h4>
+                        <span className="text-[10px] text-muted-foreground">Click a row to drill down</span>
+                      </div>
+                      <div className="rounded-lg border overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground">
+                              <th className="text-left font-semibold px-3 py-2">Date</th>
+                              <th className="text-left font-semibold px-3 py-2">Order</th>
+                              <th className="text-right font-semibold px-3 py-2">Amount</th>
+                              <th className="text-center font-semibold px-3 py-2">Status</th>
+                              <th className="w-8 px-2 py-2"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {customerSales.map((sale) => {
+                              const isOpen = expandedSaleId === sale.id;
+                              return (
+                                <Fragment key={sale.id}>
+                                  <tr onClick={() => setExpandedSaleId(isOpen ? null : sale.id)} className={`border-b cursor-pointer transition-colors ${isOpen ? 'bg-muted/40' : 'hover:bg-muted/30'}`}>
+                                    <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">{sale.date}</td>
+                                    <td className="px-3 py-2.5"><div className="flex items-center gap-1.5 max-w-[220px]"><span className="text-muted-foreground shrink-0">{chIcon(sale.channel)}</span><span className="truncate">{sale.productDetails || sale.item?.productName || 'Sale'}</span>{sale.isCredit && <CreditCard size={11} className="text-orange-500 shrink-0" />}</div></td>
+                                    <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">&#8358;{sale.amount.toLocaleString()}</td>
+                                    <td className="px-3 py-2.5 text-center"><span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${sale.status === 'Paid' ? 'bg-green-100 text-green-700' : sale.status === 'Approved' ? 'bg-blue-100 text-blue-700' : sale.status === 'Voided' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{sale.status}</span></td>
+                                    <td className="px-2 py-2.5 text-muted-foreground"><ChevronDown size={15} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} /></td>
+                                  </tr>
+                                  {isOpen && (
+                                    <tr className="border-b bg-muted/10">
+                                      <td colSpan={5} className="px-4 py-4">
+                                        {sale.productDetails && <p className="text-sm font-medium mb-3">{sale.productDetails}</p>}
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
+                                          <div><p className="text-[10px] font-bold uppercase text-muted-foreground">Channel</p><p className="text-sm font-medium">{sale.channel || '—'}</p></div>
+                                          <div><p className="text-[10px] font-bold uppercase text-muted-foreground">Profit</p><p className="text-sm font-medium text-green-700">&#8358;{(sale.profitAmount || 0).toLocaleString()} <span className="text-[10px] text-muted-foreground">{sale.profitMargin || 0}%</span></p></div>
+                                          <div><p className="text-[10px] font-bold uppercase text-muted-foreground">Payment</p><p className="text-sm font-medium">{sale.isCredit ? `Credit${sale.paymentTerms ? ` · ${sale.paymentTerms}` : ''}` : (sale.paymentType || 'Cash')}</p></div>
+                                          {sale.amountPaid != null && <div><p className="text-[10px] font-bold uppercase text-muted-foreground">Amount Paid</p><p className="text-sm font-medium">&#8358;{sale.amountPaid.toLocaleString()}</p></div>}
+                                          {sale.deliveryStatus && sale.deliveryStatus !== 'N/A' && <div><p className="text-[10px] font-bold uppercase text-muted-foreground">Delivery</p><p className="text-sm font-medium">{sale.deliveryStatus}</p></div>}
+                                          <div><p className="text-[10px] font-bold uppercase text-muted-foreground">Agent</p><p className="text-sm font-medium">{sale.agentName}</p></div>
+                                        </div>
+                                        {sale.item && (
+                                          <div className="mt-3 pt-3 border-t">
+                                            <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1.5">Line Item</p>
+                                            <div className="flex items-center justify-between text-xs">
+                                              <span>{sale.item.productName || 'Item'}</span>
+                                              <span className="text-muted-foreground">{sale.item.quantity}{sale.item.unit ? ` ${sale.item.unit}` : ''}</span>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {sale.deliveryAddress && <p className="mt-3 text-xs text-muted-foreground flex items-center gap-1.5"><MapPin size={11} /> {sale.deliveryAddress}</p>}
+                                        {sale.notes && <p className="mt-3 pt-3 border-t text-xs text-muted-foreground italic">{sale.notes}</p>}
+                                      </td>
+                                    </tr>
+                                  )}
+                                </Fragment>
+                              );
+                            })}
+                          </tbody>
+                          <tfoot>
+                            <tr className="bg-muted/20 border-t-2 border-dashed">
+                              <td colSpan={2} className="px-3 py-2.5 text-sm font-medium text-muted-foreground">Total · {customerSales.length} order{customerSales.length !== 1 ? 's' : ''}</td>
+                              <td className="px-3 py-2.5 text-right text-base font-black whitespace-nowrap">&#8358;{customerSales.reduce((a, s) => a + s.amount, 0).toLocaleString()}</td>
+                              <td colSpan={2}></td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                  );
+                })()
               )}
 
               {/* ===== CREDIT & PAYMENTS TAB ===== */}

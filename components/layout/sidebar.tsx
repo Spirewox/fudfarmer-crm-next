@@ -12,7 +12,7 @@ import {
   Settings, LogOut, Menu, X, BarChart3, Truck,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
-import { BrandMark } from '@/components/brand';
+import { BrandLogo } from '@/components/brand';
 
 const navItems: { href: string; label: string; icon: typeof LayoutDashboard; permission?: Permission }[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
@@ -58,14 +58,8 @@ export function Sidebar() {
   const content = (
     <div className="flex h-full flex-col bg-sidebar border-r border-sidebar-border">
       {/* Brand */}
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-sidebar-border">
-        <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center shadow-sm">
-          <BrandMark size={20} variant="white" />
-        </div>
-        <div>
-          <h2 className="font-semibold text-[15px] tracking-tight text-sidebar-foreground">Fudfarmer</h2>
-          <p className="text-[10px] text-muted-foreground font-medium tracking-wide uppercase">CRM Platform</p>
-        </div>
+      <div className="flex items-center px-5 py-4 border-b border-sidebar-border">
+        <BrandLogo variant="black" width={152} />
       </div>
 
       {/* Nav */}

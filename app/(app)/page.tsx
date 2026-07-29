@@ -197,7 +197,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
-            {user ? `Welcome back, ${user.name.split(' ')[0]}` : 'FudFarmer Cold Store'} &middot; {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+            {user ? `Welcome back, ${user.name.split(' ')[0]}` : 'Sales OS'} &middot; {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">

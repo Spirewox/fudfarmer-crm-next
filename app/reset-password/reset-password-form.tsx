@@ -72,7 +72,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
             <p className="mt-1 text-sm text-muted-foreground">
               {completed
                 ? 'Your password has been reset. You can now sign in.'
-                : 'Choose a secure password for your FudFarmer CRM account.'}
+                : 'Choose a secure password for your Sales OS account.'}
             </p>
           </div>
 

@@ -281,13 +281,14 @@ export interface ApiProduct {
   is_active?: boolean;
   price_version?: string;
   supplier?: string;
+  supplier_id?: string;
   last_purchase_price?: number;
   price_history?: { date: string; cost: number; price: number }[];
 }
 
 export interface ApiStockLog {
   _id: string;
-  item: string;
+  item: string | { _id?: string; sku?: string; name?: string; category?: string; unit_of_measure?: string; base_selling_price?: number };
   item_name: string;
   type: string;
   quantity: number;
@@ -296,14 +297,52 @@ export interface ApiStockLog {
   unit_price: number;
   reference_id?: string;
   notes?: string;
-  agent: string;
+  agent: string | { _id?: string; full_name?: string };
   batch_number?: string;
   expiry_date?: string;
   supplier?: string;
+  supplier_id?: string;
   from_hub?: string;
   to_hub?: string;
   reason?: string;
   date: string;
+}
+
+export interface ApiSupplier {
+  _id: string;
+  name: string;
+  business_name?: string;
+  business_type?: string;
+  hub?: string | { _id: string; hub_name?: string };
+  address?: string;
+  contact_person?: string;
+  phone?: string;
+  email?: string;
+  categories?: string[];
+  payment_terms?: string;
+  lead_time_days?: number;
+  rating?: number;
+  is_active?: boolean;
+  notes?: string;
+  createdAt?: string;
+  added_by?: string | { _id?: string; full_name?: string };
+}
+
+export interface ApiSupplierIssue {
+  _id: string;
+  supplier: string | { _id?: string };
+  supplier_name: string;
+  type: string;
+  severity: string;
+  description: string;
+  date: string;
+  status: string;
+  resolution_note?: string;
+  resolved_date?: string;
+  reported_by?: string | { _id?: string; full_name?: string };
+  reported_by_name?: string;
+  related_item?: string | { _id?: string; sku?: string; name?: string };
+  related_stock_log?: string;
 }
 
 export interface ApiAgentUser {

@@ -223,6 +223,7 @@ export interface InventoryItem {
   location: string;
   priceVersion?: string;
   supplier?: string;
+  supplierId?: string;
   lastPurchasePrice?: number;
   isActive?: boolean;
   priceHistory?: { date: string; cost: number; price: number }[];
@@ -241,12 +242,15 @@ export interface StockLog {
   referenceId?: string;
   notes?: string;
   agentId: string;
+  agentName?: string;
   batchNumber?: string;
   expiryDate?: string;
   supplier?: string;
+  supplierId?: string;
   fromLocation?: string;
   toLocation?: string;
   reason?: string;
+  itemSku?: string;
 }
 
 export type CreditGrade = 'A' | 'B' | 'C' | 'D' | 'F' | 'N/A';
@@ -477,3 +481,73 @@ export interface AuthContextType {
   error: boolean;
   refetch: () => void;
 }
+
+export enum SupplierBusinessType {
+  FARM = 'Farm',
+  DISTRIBUTOR = 'Distributor',
+  WHOLESALER = 'Wholesaler',
+  IMPORTER = 'Importer',
+  ABATTOIR = 'Abattoir',
+  MILL = 'Mill',
+  MARKET = 'Market',
+  OTHER = 'Other',
+}
+
+export enum SupplierIssueType {
+  QUALITY = 'Quality',
+  LATE_DELIVERY = 'Late Delivery',
+  SHORT_DELIVERY = 'Short Delivery',
+  WRONG_ITEM = 'Wrong Item',
+  PRICING = 'Pricing',
+  PACKAGING = 'Packaging',
+  OTHER = 'Other',
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  businessName?: string;
+  businessType?: SupplierBusinessType;
+  location?: string;
+  hubId?: string;
+  address?: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  categories?: ProductCategory[];
+  paymentTerms?: PaymentTerms;
+  leadTimeDays?: number;
+  rating?: number;
+  isActive: boolean;
+  notes?: string;
+  createdDate: string;
+  addedByAgentId?: string;
+  addedByAgentName?: string;
+}
+
+export interface SupplierIssue {
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  type: SupplierIssueType;
+  severity: 'Low' | 'Medium' | 'High';
+  description: string;
+  date: string;
+  status: 'Open' | 'Resolved';
+  resolutionNote?: string;
+  resolvedDate?: string;
+  reportedByAgentId?: string;
+  reportedByAgentName?: string;
+  relatedItemId?: string;
+  relatedStockLogId?: string;
+}
+
+export interface SupplierPurchasesResult {
+  items: StockLog[];
+  summary: {
+    orderCount: number;
+    totalSpend: number;
+    avgOrder: number;
+  };
+}
+

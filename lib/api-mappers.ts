@@ -4,6 +4,8 @@ import {
   ApiSale,
   ApiProduct,
   ApiStockLog,
+  ApiSupplier,
+  ApiSupplierIssue,
   ApiAgentUser,
   ApiFeedback,
   ApiEnquiry,
@@ -24,6 +26,8 @@ import {
   InventoryItem,
   StockLog,
   StockMovementType,
+  Supplier,
+  SupplierIssue,
   Agent,
   Feedback,
   FeedbackType,
@@ -260,12 +264,15 @@ export function mapInventoryItem(p: ApiProduct, hubMap?: Record<string, string>)
     isActive: p.is_active !== false,
     priceVersion: p.price_version,
     supplier: p.supplier,
+    supplierId: typeof p.supplier_id === 'string' ? p.supplier_id : refId(p.supplier_id),
     lastPurchasePrice: p.last_purchase_price,
     priceHistory: p.price_history,
   };
 }
 
 export function mapStockLog(l: ApiStockLog): StockLog {
+  const itemObj = typeof l.item === 'object' && l.item ? l.item : null;
+  const agentObj = typeof l.agent === 'object' && l.agent ? l.agent : null;
   return {
     id: l._id,
     date: toDateStr(l.date),
@@ -279,12 +286,60 @@ export function mapStockLog(l: ApiStockLog): StockLog {
     referenceId: l.reference_id,
     notes: l.notes,
     agentId: refId(l.agent),
+    agentName: agentObj?.full_name,
     batchNumber: l.batch_number,
     expiryDate: l.expiry_date ? toDateStr(l.expiry_date) : undefined,
     supplier: l.supplier,
+    supplierId: typeof l.supplier_id === 'string' ? l.supplier_id : refId(l.supplier_id),
     fromLocation: l.from_hub,
     toLocation: l.to_hub,
     reason: l.reason,
+    itemSku: itemObj?.sku,
+  };
+}
+
+export function mapSupplier(s: ApiSupplier, hubMap?: Record<string, string>): Supplier {
+  const addedBy = typeof s.added_by === 'object' && s.added_by ? s.added_by : null;
+  return {
+    id: s._id,
+    name: s.name,
+    businessName: s.business_name,
+    businessType: s.business_type as Supplier['businessType'],
+    hubId: refId(s.hub) || undefined,
+    location: s.hub ? resolveHubName(s.hub, hubMap) : undefined,
+    address: s.address,
+    contactPerson: s.contact_person,
+    phone: s.phone,
+    email: s.email,
+    categories: s.categories as Supplier['categories'],
+    paymentTerms: s.payment_terms as Supplier['paymentTerms'],
+    leadTimeDays: s.lead_time_days,
+    rating: s.rating,
+    isActive: s.is_active !== false,
+    notes: s.notes,
+    createdDate: toDateStr(s.createdAt) || new Date().toISOString().split('T')[0],
+    addedByAgentId: addedBy?._id || (typeof s.added_by === 'string' ? s.added_by : undefined),
+    addedByAgentName: addedBy?.full_name,
+  };
+}
+
+export function mapSupplierIssue(i: ApiSupplierIssue): SupplierIssue {
+  const reported = typeof i.reported_by === 'object' && i.reported_by ? i.reported_by : null;
+  return {
+    id: i._id,
+    supplierId: refId(i.supplier),
+    supplierName: i.supplier_name,
+    type: i.type as SupplierIssue['type'],
+    severity: i.severity as SupplierIssue['severity'],
+    description: i.description,
+    date: toDateStr(i.date),
+    status: i.status as SupplierIssue['status'],
+    resolutionNote: i.resolution_note,
+    resolvedDate: i.resolved_date ? toDateStr(i.resolved_date) : undefined,
+    reportedByAgentId: reported?._id || (typeof i.reported_by === 'string' ? i.reported_by : undefined),
+    reportedByAgentName: i.reported_by_name || reported?.full_name,
+    relatedItemId: refId(i.related_item) || undefined,
+    relatedStockLogId: typeof i.related_stock_log === 'string' ? i.related_stock_log : undefined,
   };
 }
 

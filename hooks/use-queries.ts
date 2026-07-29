@@ -18,6 +18,8 @@ import {
   ApiSale,
   ApiProduct,
   ApiStockLog,
+  ApiSupplier,
+  ApiSupplierIssue,
   ApiUsersListResponse,
   ApiRole,
   ApiFeedback,
@@ -67,6 +69,8 @@ import {
   mapSale,
   mapInventoryItem,
   mapStockLog,
+  mapSupplier,
+  mapSupplierIssue,
   mapAgent,
   mapFeedback,
   mapEnquiry,
@@ -89,6 +93,9 @@ import {
   SalesListSummary,
   AuditLogListResult,
   AuditLogListSummary,
+  Supplier,
+  SupplierIssue,
+  SupplierPurchasesResult,
 } from '../types';
 
 
@@ -1367,6 +1374,167 @@ export function useRecordStockMove() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['stockLogs'] });
       qc.invalidateQueries({ queryKey: ['inventory'] });
+      qc.invalidateQueries({ queryKey: ['supplierPurchases'] });
+    },
+  });
+}
+
+export function useSuppliers(filters?: {
+  search?: string;
+  business_type?: string;
+  hub_id?: string;
+  category?: string;
+  is_active?: boolean;
+  page?: number;
+  limit?: number;
+}) {
+  return useQuery({
+    queryKey: ['suppliers', filters],
+    queryFn: async (): Promise<{
+      items: Supplier[];
+      summary: { total: number; active: number; openIssues: number };
+    }> => {
+      if (!HAS_API) return { items: [], summary: { total: 0, active: 0, openIssues: 0 } };
+      const hubMap = await fetchHubMap();
+      const raw = await axiosGet(`suppliers${buildQuery(filters ?? {})}`, true) as {
+        data?: ApiSupplier[];
+        summary?: { total?: number; active?: number; open_issues?: number };
+      };
+      return {
+        items: (raw.data ?? []).map((s) => mapSupplier(s, hubMap)),
+        summary: {
+          total: raw.summary?.total ?? 0,
+          active: raw.summary?.active ?? 0,
+          openIssues: raw.summary?.open_issues ?? 0,
+        },
+      };
+    },
+  });
+}
+
+export function useSupplier(id: string | null) {
+  return useQuery({
+    queryKey: ['supplier', id],
+    enabled: !!id,
+    queryFn: async () => {
+      if (!id || !HAS_API) return null;
+      const hubMap = await fetchHubMap();
+      const raw = await axiosGet(`suppliers/${id}`, true) as ApiSupplier;
+      return mapSupplier(raw, hubMap);
+    },
+  });
+}
+
+export function useCreateSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (dto: Record<string, unknown>) => {
+      const hubMap = await fetchHubMap();
+      const raw = await axiosPost('suppliers', dto, true) as ApiSupplier;
+      return mapSupplier(raw, hubMap);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['suppliers'] }),
+  });
+}
+
+export function useUpdateSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...dto }: { id: string } & Record<string, unknown>) => {
+      const hubMap = await fetchHubMap();
+      const raw = await axiosPatch(`suppliers/${id}`, dto, true) as ApiSupplier;
+      return mapSupplier(raw, hubMap);
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['suppliers'] });
+      qc.invalidateQueries({ queryKey: ['supplier', vars.id] });
+    },
+  });
+}
+
+export function useSupplierPurchases(supplierId: string | null) {
+  return useQuery({
+    queryKey: ['supplierPurchases', supplierId],
+    enabled: !!supplierId,
+    queryFn: async (): Promise<SupplierPurchasesResult> => {
+      if (!supplierId || !HAS_API) {
+        return { items: [], summary: { orderCount: 0, totalSpend: 0, avgOrder: 0 } };
+      }
+      const raw = await axiosGet(`suppliers/${supplierId}/purchases?limit=200`, true) as {
+        data?: ApiStockLog[];
+        summary?: { order_count?: number; total_spend?: number; avg_order?: number };
+      };
+      return {
+        items: (raw.data ?? []).map(mapStockLog),
+        summary: {
+          orderCount: raw.summary?.order_count ?? 0,
+          totalSpend: raw.summary?.total_spend ?? 0,
+          avgOrder: raw.summary?.avg_order ?? 0,
+        },
+      };
+    },
+  });
+}
+
+export function useSupplierIssues(supplierId: string | null) {
+  return useQuery({
+    queryKey: ['supplierIssues', supplierId],
+    enabled: !!supplierId,
+    queryFn: async (): Promise<SupplierIssue[]> => {
+      if (!supplierId || !HAS_API) return [];
+      const raw = await axiosGet(`suppliers/${supplierId}/issues`, true);
+      const list: ApiSupplierIssue[] = Array.isArray(raw) ? raw : [];
+      return list.map(mapSupplierIssue);
+    },
+  });
+}
+
+export function useCreateSupplierIssue() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      supplierId,
+      ...dto
+    }: {
+      supplierId: string;
+      type: string;
+      severity: string;
+      description: string;
+      related_item_id?: string;
+    }) => {
+      const raw = await axiosPost(`suppliers/${supplierId}/issues`, dto, true) as ApiSupplierIssue;
+      return mapSupplierIssue(raw);
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['supplierIssues', vars.supplierId] });
+      qc.invalidateQueries({ queryKey: ['suppliers'] });
+    },
+  });
+}
+
+export function useUpdateSupplierIssue() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      supplierId,
+      issueId,
+      ...dto
+    }: {
+      supplierId: string;
+      issueId: string;
+      status?: string;
+      resolution_note?: string;
+    }) => {
+      const raw = await axiosPatch(
+        `suppliers/${supplierId}/issues/${issueId}`,
+        dto,
+        true,
+      ) as ApiSupplierIssue;
+      return mapSupplierIssue(raw);
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['supplierIssues', vars.supplierId] });
+      qc.invalidateQueries({ queryKey: ['suppliers'] });
     },
   });
 }

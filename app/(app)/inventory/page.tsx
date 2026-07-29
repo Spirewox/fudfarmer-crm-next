@@ -11,10 +11,11 @@ import {
   useInventory, useCreateProduct, useUpdateProduct, useStockLogs,
   useRecordStockMove, useTransferStock, useBatchStockUpdate, useHubs,
   useDownloadInventoryImportTemplate, useValidateInventoryImport, useImportInventory,
-  useInventorySalesMetrics,
+  useInventorySalesMetrics, useSuppliers,
 } from '@/hooks/use-queries';
 import { InventoryItem, StockLog, StockMovementType } from '@/types';
 import type { InventoryImportPreviewRow } from '@/types/api';
+import Link from 'next/link';
 import { PRODUCT_CATEGORIES } from '@/lib/product-categories';
 import { InventoryImportModal } from './inventory-import-modal';
 import { InventoryRequestsPanel } from './inventory-requests-panel';
@@ -197,6 +198,8 @@ export default function InventoryPage() {
   const batchStockUpdate = useBatchStockUpdate();
   const { data: hubs = [] } = useHubs();
   const activeHubs = hubs.filter(h => h.isActive);
+  const { data: supplierList } = useSuppliers({ is_active: true, limit: 200 });
+  const activeSuppliers = supplierList?.items ?? [];
 
   // View state
   const [activeView, setActiveView] = useState<'Products' | 'Ledger' | 'Requests'>('Products');
@@ -250,11 +253,12 @@ export default function InventoryPage() {
     batchNumber: '',
     expiryDate: '',
     supplier: '',
+    supplierId: '',
     toLocation: '',
     reason: '',
   });
 
-  // Supplier autocomplete
+  // Supplier autocomplete (legacy free-text fallback unused when registered suppliers exist)
   const [showSupplierSuggestions, setShowSupplierSuggestions] = useState(false);
   const uniqueSuppliers = useMemo(() => getUniqueSuppliers(logs), [logs]);
   const filteredSuppliers = useMemo(() => {
@@ -459,6 +463,7 @@ export default function InventoryPage() {
       carton_price: newProduct.cartonPrice,
       carton_weight: newProduct.cartonWeight,
       hub_id: hub?.id,
+      supplier_id: newProduct.supplierId || undefined,
     }, {
       onSuccess: () => {
         setShowAddProductModal(false);
@@ -466,6 +471,7 @@ export default function InventoryPage() {
           sku: '', name: '', category: 'Fish', unitOfMeasure: 'Cartons',
           minStockLevel: 5, currentStock: 0, avgUnitCost: 0, baseSellingPrice: 0,
           location: user?.location || activeHubs[0]?.name || 'Lagos',
+          supplierId: '',
         });
         toast.success('Product created successfully.');
       },
@@ -534,7 +540,7 @@ export default function InventoryPage() {
     const closeModal = () => {
       setShowStockMoveModal(false);
       setSelectedProduct(null);
-      setMoveData({ type: StockMovementType.PURCHASE, quantity: 1, unitCost: 0, unitPrice: 0, notes: '', batchNumber: '', expiryDate: '', supplier: '', toLocation: '', reason: '' });
+      setMoveData({ type: StockMovementType.PURCHASE, quantity: 1, unitCost: 0, unitPrice: 0, notes: '', batchNumber: '', expiryDate: '', supplier: '', supplierId: '', toLocation: '', reason: '' });
     };
 
     if (moveData.type === StockMovementType.TRANSFER) {
@@ -572,6 +578,7 @@ export default function InventoryPage() {
       batch_number: moveData.batchNumber || undefined,
       expiry_date: moveData.expiryDate || undefined,
       supplier: moveData.supplier || undefined,
+      supplier_id: moveData.supplierId || undefined,
       reason: moveData.reason || undefined,
     }, {
       onSuccess: () => { toast.success('Stock updated.'); closeModal(); },
@@ -1118,7 +1125,7 @@ export default function InventoryPage() {
                               <button
                                 onClick={() => {
                                   setSelectedProduct(item);
-                                  setMoveData({ ...moveData, unitCost: item.avgUnitCost, unitPrice: item.baseSellingPrice, type: StockMovementType.PURCHASE, quantity: 1, notes: '', batchNumber: '', expiryDate: '', supplier: item.supplier || '', toLocation: '', reason: '' });
+                                  setMoveData({ ...moveData, unitCost: item.avgUnitCost, unitPrice: item.baseSellingPrice, type: StockMovementType.PURCHASE, quantity: 1, notes: '', batchNumber: '', expiryDate: '', supplier: item.supplier || '', supplierId: item.supplierId || '', toLocation: '', reason: '' });
                                   setShowStockMoveModal(true);
                                 }}
                                 className="h-8 w-8 rounded-md flex items-center justify-center border hover:bg-accent text-muted-foreground hover:text-foreground"
@@ -1131,7 +1138,7 @@ export default function InventoryPage() {
                               <button
                                 onClick={() => {
                                   setSelectedProduct(item);
-                                  setMoveData({ type: StockMovementType.TRANSFER, quantity: 1, unitCost: item.avgUnitCost, unitPrice: item.baseSellingPrice, notes: '', batchNumber: '', expiryDate: '', supplier: '', toLocation: '', reason: '' });
+                                  setMoveData({ type: StockMovementType.TRANSFER, quantity: 1, unitCost: item.avgUnitCost, unitPrice: item.baseSellingPrice, notes: '', batchNumber: '', expiryDate: '', supplier: '', supplierId: '', toLocation: '', reason: '' });
                                   setShowStockMoveModal(true);
                                 }}
                                 className="h-8 w-8 rounded-md flex items-center justify-center border hover:bg-accent text-muted-foreground hover:text-foreground"
@@ -1444,7 +1451,17 @@ export default function InventoryPage() {
                       <div className="flex items-center gap-2"><Activity size={14} /> <span className="text-muted-foreground">Weight:</span> <span className="font-bold">{viewingDetailsItem.cartonWeight} Kg</span></div>
                     )}
                     {viewingDetailsItem.supplier && (
-                      <div className="flex items-center gap-2 col-span-2"><Truck size={14} /> <span className="text-muted-foreground">Last Supplier:</span> <span className="font-bold">{viewingDetailsItem.supplier}</span></div>
+                      <div className="flex items-center gap-2 col-span-2">
+                        <Truck size={14} />
+                        <span className="text-muted-foreground">Last Supplier:</span>
+                        {viewingDetailsItem.supplierId ? (
+                          <Link href={`/suppliers?open=${viewingDetailsItem.supplierId}`} className="font-bold text-primary hover:underline">
+                            {viewingDetailsItem.supplier}
+                          </Link>
+                        ) : (
+                          <span className="font-bold">{viewingDetailsItem.supplier}</span>
+                        )}
+                      </div>
                     )}
                     {viewingDetailsItem.lastPurchasePrice != null && (
                       <div className="flex items-center gap-2 col-span-2"><span className="text-sm font-bold">₦</span> <span className="text-muted-foreground">Last Purchase Price:</span> <span className="font-bold">&#8358;{viewingDetailsItem.lastPurchasePrice.toLocaleString()}</span></div>
@@ -1457,7 +1474,7 @@ export default function InventoryPage() {
                       <button
                         onClick={() => {
                           setSelectedProduct(viewingDetailsItem);
-                          setMoveData({ type: StockMovementType.PURCHASE, quantity: 1, unitCost: viewingDetailsItem.avgUnitCost, unitPrice: viewingDetailsItem.baseSellingPrice, notes: '', batchNumber: '', expiryDate: '', supplier: viewingDetailsItem.supplier || '', toLocation: '', reason: '' });
+                          setMoveData({ type: StockMovementType.PURCHASE, quantity: 1, unitCost: viewingDetailsItem.avgUnitCost, unitPrice: viewingDetailsItem.baseSellingPrice, notes: '', batchNumber: '', expiryDate: '', supplier: viewingDetailsItem.supplier || '', supplierId: viewingDetailsItem.supplierId || '', toLocation: '', reason: '' });
                           setShowStockMoveModal(true);
                         }}
                         className="flex-1 h-10 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2"
@@ -1469,7 +1486,7 @@ export default function InventoryPage() {
                       <button
                         onClick={() => {
                           setSelectedProduct(viewingDetailsItem);
-                          setMoveData({ type: StockMovementType.TRANSFER, quantity: 1, unitCost: viewingDetailsItem.avgUnitCost, unitPrice: viewingDetailsItem.baseSellingPrice, notes: '', batchNumber: '', expiryDate: '', supplier: '', toLocation: '', reason: '' });
+                          setMoveData({ type: StockMovementType.TRANSFER, quantity: 1, unitCost: viewingDetailsItem.avgUnitCost, unitPrice: viewingDetailsItem.baseSellingPrice, notes: '', batchNumber: '', expiryDate: '', supplier: '', supplierId: '', toLocation: '', reason: '' });
                           setShowStockMoveModal(true);
                         }}
                         className="flex-1 h-10 rounded-md text-sm font-medium border border-input bg-background hover:bg-accent flex items-center justify-center gap-2"
@@ -1658,6 +1675,19 @@ export default function InventoryPage() {
                   placeholder={newProduct.unitOfMeasure === 'Cartons' ? 'Required for Cartons' : 'Optional'}
                   className={inputCls}
                 />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <label className={labelCls}>Supplier (optional)</label>
+                <select
+                  value={newProduct.supplierId || ''}
+                  onChange={(e) => setNewProduct({ ...newProduct, supplierId: e.target.value || undefined })}
+                  className={inputCls}
+                >
+                  <option value="">— None —</option>
+                  {activeSuppliers.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}{s.businessName ? ` (${s.businessName})` : ''}</option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-2 col-span-2">
                 <label className={labelCls}>Location Hub</label>
@@ -1849,30 +1879,31 @@ export default function InventoryPage() {
                       <input type="date" value={moveData.expiryDate} onChange={(e) => setMoveData({ ...moveData, expiryDate: e.target.value })} className={inputCls} />
                     </div>
                   </div>
-                  <div className="space-y-2 relative">
-                    <label className={labelCls}>Supplier</label>
-                    <input
-                      type="text"
-                      value={moveData.supplier}
-                      onChange={(e) => { setMoveData({ ...moveData, supplier: e.target.value }); setShowSupplierSuggestions(true); }}
-                      onFocus={() => setShowSupplierSuggestions(true)}
-                      onBlur={() => setTimeout(() => setShowSupplierSuggestions(false), 200)}
-                      placeholder="Type or select supplier"
+                  <div className="space-y-2">
+                    <label className={labelCls}>Supplier (optional)</label>
+                    <select
+                      value={moveData.supplierId}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const match = activeSuppliers.find((s) => s.id === id);
+                        setMoveData({
+                          ...moveData,
+                          supplierId: id,
+                          supplier: match?.name || '',
+                        });
+                      }}
                       className={inputCls}
-                    />
-                    {showSupplierSuggestions && filteredSuppliers.length > 0 && (
-                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                        {filteredSuppliers.map((s) => (
-                          <button
-                            key={s}
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-accent"
-                            onMouseDown={(e) => { e.preventDefault(); setMoveData({ ...moveData, supplier: s }); setShowSupplierSuggestions(false); }}
-                          >
-                            {s}
-                          </button>
-                        ))}
-                      </div>
+                    >
+                      <option value="">— None —</option>
+                      {activeSuppliers.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                    {activeSuppliers.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        No registered suppliers yet. Add one under{' '}
+                        <Link href="/suppliers" className="text-primary underline">Suppliers</Link>.
+                      </p>
                     )}
                   </div>
                 </>

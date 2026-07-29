@@ -19,6 +19,7 @@ import {
   ArrowUpDown,
 } from 'lucide-react';
 import { PaginationControls } from '@/components/ui/pagination-controls';
+import { TableSkeleton } from '@/components/ui/loading-skeletons';
 
 type SortKey = 'outstanding' | 'overdue' | 'oldest';
 const PAGE_SIZE = 20;
@@ -185,10 +186,10 @@ export default function CreditsPage() {
               </tr>
             </thead>
             <tbody>
-              {isLoading && (
+              {isLoading && summary.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
-                    Loading credit summary…
+                  <td colSpan={6} className="p-0">
+                    <TableSkeleton rows={6} cols={6} />
                   </td>
                 </tr>
               )}

@@ -1,11 +1,16 @@
 import axios, { isAxiosError } from "axios";
 
 const base_url = process.env.NEXT_PUBLIC_API_URL;
+const REQUEST_TIMEOUT_MS = 8_000;
 
+const authConfig = (withAuth?: boolean) => ({
+  withCredentials: withAuth,
+  timeout: REQUEST_TIMEOUT_MS,
+});
 
 export const axiosGet = async (endpoint: string, withAuth?: boolean) => {
   try {
-    const res = await axios.get(`${base_url}${endpoint}`,{withCredentials : withAuth});
+    const res = await axios.get(`${base_url}${endpoint}`, authConfig(withAuth));
     return res.data;
   } catch (error) {
     if (isAxiosError(error)) {
@@ -21,7 +26,7 @@ export const axiosPost = async (
   withAuth?: boolean,
 ) => {
   try {
-    const res = await axios.post(`${base_url}${endpoint}`, data, {withCredentials : withAuth});
+    const res = await axios.post(`${base_url}${endpoint}`, data, authConfig(withAuth));
     return res.data;
   } catch (error) {
     if (isAxiosError(error)) {
@@ -44,7 +49,7 @@ export const axiosPatch = async (
   withAuth?: boolean,
 ) => {
   try {
-    const res = await axios.patch(`${base_url}${endpoint}`, data,{withCredentials : withAuth});
+    const res = await axios.patch(`${base_url}${endpoint}`, data, authConfig(withAuth));
     return res.data;
   } catch (error) {
     if (isAxiosError(error)) {
@@ -60,7 +65,7 @@ export const axiosPut = async (
   withAuth?: boolean,
 ) => {
   try {
-    const res = await axios.put(`${base_url}${endpoint}`, data, {withCredentials : withAuth});
+    const res = await axios.put(`${base_url}${endpoint}`, data, authConfig(withAuth));
     return res.data;
   } catch (error) {
     if (isAxiosError(error)) {
@@ -73,7 +78,7 @@ export const axiosPut = async (
 
 export const axiosDelete = async (endpoint: string, withAuth?: boolean) => {
   try {
-    const res = await axios.delete(`${base_url}${endpoint}`, {withCredentials : withAuth});
+    const res = await axios.delete(`${base_url}${endpoint}`, authConfig(withAuth));
     return res.data;
   } catch (error) {
     if (isAxiosError(error)) {
@@ -87,7 +92,7 @@ export const axiosDelete = async (endpoint: string, withAuth?: boolean) => {
 export const axiosGetBlob = async (endpoint: string, withAuth?: boolean) => {
   try {
     const res = await axios.get(`${base_url}${endpoint}`, {
-      withCredentials: withAuth,
+      ...authConfig(withAuth),
       responseType: 'arraybuffer',
     });
     return res.data as ArrayBuffer;
@@ -105,9 +110,7 @@ export const axiosPostForm = async (
   withAuth?: boolean,
 ) => {
   try {
-    const res = await axios.post(`${base_url}${endpoint}`, formData, {
-      withCredentials: withAuth,
-    });
+    const res = await axios.post(`${base_url}${endpoint}`, formData, authConfig(withAuth));
     return res.data;
   } catch (error) {
     if (isAxiosError(error)) {

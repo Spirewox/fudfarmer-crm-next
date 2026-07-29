@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useAuditLogs, useAgents } from '@/hooks/use-queries';
 import { History, Search, Filter, Box, Banknote, User, Shield, Clock, CalendarDays, Upload, X } from 'lucide-react';
 import type { AuditLog } from '@/types';
+import { TableSkeleton } from '@/components/ui/loading-skeletons';
 
 type DatePreset = 'today' | '7days' | '30days' | 'all';
 type AuditTab = 'all' | 'bulk' | 'sales' | 'inventory' | 'customers';
@@ -159,7 +160,13 @@ export default function AuditTrailPage() {
               </tr>
             ))}
             {logs.length === 0 && !isLoading && <tr><td colSpan={9} className="p-12 text-center text-muted-foreground italic">No bulk upload logs found.</td></tr>}
-            {isLoading && <tr><td colSpan={9} className="p-12 text-center text-muted-foreground italic">Loading audit logs...</td></tr>}
+            {isLoading && logs.length === 0 && (
+              <tr>
+                <td colSpan={9} className="p-0">
+                  <TableSkeleton rows={6} cols={9} />
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -242,7 +249,13 @@ export default function AuditTrailPage() {
                   </tr>
                 ))}
                 {logs.length === 0 && !isLoading && <tr><td colSpan={5} className="p-12 text-center text-muted-foreground italic">No activity logs found.</td></tr>}
-                {isLoading && <tr><td colSpan={5} className="p-12 text-center text-muted-foreground italic">Loading audit logs...</td></tr>}
+                {isLoading && logs.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-0">
+                      <TableSkeleton rows={6} cols={5} />
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

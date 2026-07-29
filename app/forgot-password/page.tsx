@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Leaf, MailCheck } from 'lucide-react';
+import { MailCheck } from 'lucide-react';
 import { SubmitButton } from '@/components/submit-button';
 import { useForgotPassword } from '@/hooks/use-queries';
+import { BrandLogo } from '@/components/brand';
 
 export default function ForgotPasswordPage() {
   const forgotPassword = useForgotPassword();
@@ -33,13 +34,15 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-sm">
         <div className="rounded-2xl border bg-card p-8 shadow-xl shadow-primary/5">
           <div className="mb-8 flex flex-col items-center text-center">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/25">
-              {submitted ? (
+            {submitted ? (
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/25">
                 <MailCheck className="text-primary-foreground" size={22} />
-              ) : (
-                <Leaf className="text-primary-foreground" size={22} />
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="mb-4 flex flex-col items-center">
+                <BrandLogo variant="color" width={160} className="mb-1" />
+              </div>
+            )}
             <h1 className="text-xl font-semibold tracking-tight">
               {submitted ? 'Check your email' : 'Forgot your password?'}
             </h1>

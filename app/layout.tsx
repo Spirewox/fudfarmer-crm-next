@@ -5,8 +5,11 @@ import { QueryProvider } from '@/providers/query-provider';
 import { Toaster } from 'sonner';
 
 export const metadata: Metadata = {
-  title: 'FudFarmer CRM',
-  description: 'Sales & inventory management for FudFarmer',
+  title: 'Fudfarmer CRM',
+  description: 'Sales & inventory management for Fudfarmer',
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

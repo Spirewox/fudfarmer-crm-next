@@ -17,6 +17,7 @@ import { AddSaleModal } from './add-sale-modal';
 import { SalesImportModal } from './sales-import-modal';
 import { PaginationControls } from '@/components/ui/pagination-controls';
 import { MetricValue } from '@/components/ui/metric-value';
+import { TableSkeleton } from '@/components/ui/loading-skeletons';
 import type { Sale } from '@/types';
 
 type SalesTableRowProps = Readonly<{
@@ -308,8 +309,12 @@ export default function SalesPage() {
               {filteredSales.length === 0 && !tableLoading && (
                 <tr><td colSpan={9} className="p-12 text-center text-muted-foreground italic">No sales match your filters.</td></tr>
               )}
-              {tableLoading && (
-                <tr><td colSpan={9} className="p-12 text-center text-muted-foreground italic">Loading sales...</td></tr>
+              {tableLoading && filteredSales.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="p-0">
+                    <TableSkeleton rows={8} cols={9} />
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>

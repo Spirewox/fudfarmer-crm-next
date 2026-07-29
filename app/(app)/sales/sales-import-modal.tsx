@@ -4,6 +4,7 @@ import { Upload, X, Check, AlertCircle, Download, Loader2 } from 'lucide-react';
 import type { SalesImportChunkResult, SalesImportPreviewRow } from '@/types/api';
 import { fmt, BTN_PRIMARY, BTN_SECONDARY } from '../sales/sales-utils';
 import { ModalDialog } from '../sales/modal-dialog';
+import { PanelSkeleton } from '@/components/ui/loading-skeletons';
 
 export interface SalesImportModalProps {
   show: boolean;
@@ -163,10 +164,8 @@ export function SalesImportModal({
         </div>
 
         {validating && previewRows.length === 0 && (
-          <div className="mb-4 rounded-md border bg-primary/5 p-6 text-center">
-            <Loader2 size={28} className="mx-auto mb-3 animate-spin text-primary" />
-            <p className="font-semibold">Uploading and validating workbook...</p>
-            <p className="mt-1 text-xs text-muted-foreground">Please wait while we read the selected Excel file.</p>
+          <div className="mb-4 rounded-md border bg-primary/5">
+            <PanelSkeleton label="Uploading and validating workbook..." />
           </div>
         )}
 

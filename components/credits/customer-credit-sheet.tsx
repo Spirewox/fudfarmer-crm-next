@@ -19,6 +19,7 @@ import {
 import { fmt, daysUntil, formatDate, statusBadgeClass } from './credit-utils';
 import { toast } from 'sonner';
 import { SubmitButton } from '@/components/submit-button';
+import { CreditSheetSkeleton } from '@/components/ui/loading-skeletons';
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -146,7 +147,7 @@ export function CustomerCreditSheet({ customer, open, onOpenChange }: CustomerCr
 
               <div className="p-5 space-y-6">
                 {isLoading && (
-                  <p className="text-sm text-muted-foreground text-center py-8">Loading credits…</p>
+                  <CreditSheetSkeleton />
                 )}
 
                 {!isLoading && openItems.length === 0 && clearedItems.length === 0 && (

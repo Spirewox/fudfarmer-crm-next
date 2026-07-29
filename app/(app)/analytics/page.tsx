@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { PaymentMode } from '@/types';
 import { PRODUCT_CATEGORY_COLORS } from '@/lib/product-categories';
+import { AnalyticsPageSkeleton } from '@/components/ui/loading-skeletons';
 
 const NAIRA = '\u20A6';
 const fmt = (n: number) => `${NAIRA}${n.toLocaleString()}`;
@@ -124,9 +125,7 @@ export default function AnalyticsPage() {
           <p className="text-sm text-muted-foreground">Connect to the API to view analytics.</p>
         </div>
       ) : isLoading || !overview ? (
-        <div className="flex items-center justify-center py-24">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
+        <AnalyticsPageSkeleton />
       ) : (
         <>
           <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border overflow-x-auto">

@@ -1,10 +1,12 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useLayoutEffect } from 'react';
 import { HAS_API, requireApi } from '@/lib/require-api';
 import { axiosGet, axiosPost, axiosPatch, axiosDelete, axiosGetBlob, axiosPostForm } from '@/lib/api';
 import { customerTypeToApi, customerCompanyNameForApi, customerPhoneForApi } from '@/lib/customer-helpers';
 import { mapApiUser } from '@/lib/utils';
+import { readWhoAmICache, writeWhoAmICache } from '@/lib/whoami-cache';
 import {
   ApiUser,
   ApiResponse,
@@ -347,11 +349,24 @@ function invalidateCredits(qc: ReturnType<typeof useQueryClient>) {
 
 // --- Auth ---
 export function useWhoAmI() {
+  const queryClient = useQueryClient();
+
+  // Hydrate from sessionStorage before paint so warm boots skip the flower gate
+  useLayoutEffect(() => {
+    const cached = readWhoAmICache();
+    if (!cached) return;
+    if (queryClient.getQueryData(['whoami']) != null) return;
+    queryClient.setQueryData(['whoami'], cached);
+    void queryClient.invalidateQueries({ queryKey: ['whoami'] });
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ['whoami'],
     queryFn: async () => {
       const res = await axiosGet('auth/whoami', true) as ApiResponse<ApiUser>;
-      return mapApiUser(res.data);
+      const user = mapApiUser(res.data);
+      writeWhoAmICache(user);
+      return user;
     },
     retry: false,
     staleTime: 5 * 60 * 1000,

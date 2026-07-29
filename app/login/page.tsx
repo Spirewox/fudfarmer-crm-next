@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
-import { Leaf, Loader2 } from 'lucide-react';
 import { SubmitButton } from '@/components/submit-button';
+import { BrandLogo, BrandLoader } from '@/components/brand';
 import Link from 'next/link';
 
 export default function LoginPage() {
@@ -35,11 +35,7 @@ export default function LoginPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="animate-spin text-primary" size={32} />
-      </div>
-    );
+    return <BrandLoader />;
   }
 
   return (
@@ -47,10 +43,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="rounded-2xl border bg-card p-8 shadow-xl shadow-primary/5">
           <div className="flex flex-col items-center mb-8">
-            <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center mb-4 shadow-lg shadow-primary/25">
-              <Leaf className="text-primary-foreground" size={22} />
-            </div>
-            <h1 className="text-xl font-semibold tracking-tight">FudFarmer CRM</h1>
+            <BrandLogo variant="color" width={168} priority className="mb-4" />
             <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
           </div>
 

@@ -31,6 +31,7 @@ import { MetricsPeriodBar, useMetricsPeriod } from '@/components/metrics-period-
 import { SubmitButton } from '@/components/submit-button';
 import { PaginationControls } from '@/components/ui/pagination-controls';
 import { MetricValue } from '@/components/ui/metric-value';
+import { TableSkeleton } from '@/components/ui/loading-skeletons';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
 } from 'recharts';
@@ -39,7 +40,7 @@ import {
   Filter, Phone, Mail, Calendar, Copy, Check,
   Edit3, Save, ShoppingCart, CreditCard, MessageSquare,
   Package, Truck, ChevronRight, AlertTriangle,
-  RefreshCw, Clock, Loader2, TrendingUp, TrendingDown,
+  RefreshCw, Clock, TrendingUp, TrendingDown,
   Users, BarChart3, Heart, Upload, Download,
   Briefcase, Home, Church, Cake, HeartPulse, Tag, Sparkles,
   Repeat, ChevronDown, Activity, Wallet, Flame, Timer, Boxes, Gauge,
@@ -796,7 +797,7 @@ export default function CustomersPage() {
         </div>
         <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
           {customerMeta.total} customer{customerMeta.total !== 1 ? 's' : ''}
-          {tableLoading && ' · Loading...'}
+          {customersFetching && !customersLoading && ' · Updating…'}
         </span>
       </div>
 
@@ -893,8 +894,14 @@ export default function CustomersPage() {
                   </tr>
                 );
               })}
-              {customers.length === 0 && !tableLoading && <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No customers found matching your filters.</td></tr>}
-              {tableLoading && <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Loading customers...</td></tr>}
+              {customers.length === 0 && !customersLoading && <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No customers found matching your filters.</td></tr>}
+              {customersLoading && customers.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="p-0">
+                    <TableSkeleton rows={8} cols={8} />
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

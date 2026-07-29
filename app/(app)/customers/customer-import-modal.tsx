@@ -3,6 +3,7 @@
 import { Upload, X, Check, AlertCircle, AlertTriangle, Download, Loader2 } from 'lucide-react';
 import type { CustomerImportPreviewRow } from '@/types/api';
 import { ModalDialog } from '../sales/modal-dialog';
+import { PanelSkeleton } from '@/components/ui/loading-skeletons';
 
 const BTN_PRIMARY = 'inline-flex items-center rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2';
 const BTN_SECONDARY = 'inline-flex items-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent h-9 px-4 py-2';
@@ -98,10 +99,8 @@ export function CustomerImportModal({
         </div>
 
         {validating && previewRows.length === 0 && (
-          <div className="mb-4 rounded-md border bg-primary/5 p-6 text-center">
-            <Loader2 size={28} className="mx-auto mb-3 animate-spin text-primary" />
-            <p className="font-semibold">Uploading and validating workbook...</p>
-            <p className="mt-1 text-xs text-muted-foreground">Please wait while we read the selected Excel file.</p>
+          <div className="mb-4 rounded-md border bg-primary/5">
+            <PanelSkeleton label="Uploading and validating workbook..." />
           </div>
         )}
 

@@ -1,39 +1,49 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthContextType } from '@/types';
 import { useWhoAmI } from '@/hooks/use-queries';
 import { axiosPost } from '@/lib/api';
+import { clearWhoAmICache } from '@/lib/whoami-cache';
 import { useQueryClient } from '@tanstack/react-query';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const queryClient = useQueryClient();
 
   const {
     data: user,
     isError,
+    isPending,
     refetch,
   } = useWhoAmI();
 
+  // Only block when there is no cached/resolved user yet
+  const loading = isPending && !user;
+
   useEffect(() => {
-    if (user || isError) setLoading(false);
-  }, [user, isError]);
+    if (!isError) return;
+    clearWhoAmICache();
+    queryClient.setQueryData(['whoami'], null);
+  }, [isError, queryClient]);
 
   const login = async (email: string, password: string) => {
     await axiosPost('auth/login', { email, password }, true);
-    router.replace('/');
     await refetch();
+    router.replace('/');
   };
 
   const logout = async () => {
-    await axiosPost('auth/logout', {}, true);
-    queryClient.setQueryData(['whoami'], null);
-    router.push('/login');
+    try {
+      await axiosPost('auth/logout', {}, true);
+    } finally {
+      clearWhoAmICache();
+      queryClient.setQueryData(['whoami'], null);
+      router.push('/login');
+    }
   };
 
   return (

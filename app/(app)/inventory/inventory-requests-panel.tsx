@@ -18,6 +18,7 @@ import type { ApiInventoryRequest, InventoryRequestStatus } from '@/types/api';
 import { Hub } from '@/types';
 import { hubOptionLabel } from '@/lib/api-mappers';
 import { SubmitButton } from '@/components/submit-button';
+import { TableSkeleton } from '@/components/ui/loading-skeletons';
 import { toast } from 'sonner';
 import { Plus, Package, Check, X, Truck, Ban } from 'lucide-react';
 
@@ -369,7 +370,7 @@ export function InventoryRequestsPanel() {
 
       <div className="rounded-xl border bg-card overflow-hidden">
         {isLoading ? (
-          <p className="p-6 text-sm text-muted-foreground">Loading requests…</p>
+          <TableSkeleton rows={5} cols={4} className="p-4" />
         ) : filteredRequests.length === 0 ? (
           <p className="p-6 text-sm text-muted-foreground">No inventory requests yet.</p>
         ) : (

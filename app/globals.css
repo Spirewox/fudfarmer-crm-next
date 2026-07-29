@@ -129,3 +129,63 @@
     @apply font-sans;
   }
 }
+
+/* Brand flower assemble loader — petals bloom from center into the mark */
+@keyframes brand-petal-assemble {
+  0% {
+    opacity: 0;
+    transform: scale(0.15);
+  }
+  18% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  28% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  72% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+}
+
+.brand-loader-bloom {
+  transform-origin: center;
+}
+
+.brand-loader-petal {
+  transform-box: view-box;
+  transform-origin: 69px 65px;
+  animation: brand-petal-assemble 2.4s ease-in-out infinite;
+}
+
+/* Outer ring first, then diagonals, then vertical — reads as petals forming a flower */
+.brand-loader-petal[data-petal="0"] { animation-delay: 0ms; }
+.brand-loader-petal[data-petal="1"] { animation-delay: 40ms; }
+.brand-loader-petal[data-petal="2"] { animation-delay: 120ms; }
+.brand-loader-petal[data-petal="3"] { animation-delay: 80ms; }
+.brand-loader-petal[data-petal="4"] { animation-delay: 160ms; }
+.brand-loader-petal[data-petal="5"] { animation-delay: 200ms; }
+.brand-loader-petal[data-petal="6"] { animation-delay: 240ms; }
+.brand-loader-petal[data-petal="7"] { animation-delay: 280ms; }
+.brand-loader-petal[data-petal="8"] { animation-delay: 320ms; }
+.brand-loader-petal[data-petal="9"] { animation-delay: 180ms; }
+.brand-loader-petal[data-petal="10"] { animation-delay: 220ms; }
+.brand-loader-petal[data-petal="11"] { animation-delay: 260ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader-petal {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+
+  .skeleton-shimmer {
+    animation: none !important;
+  }
+}

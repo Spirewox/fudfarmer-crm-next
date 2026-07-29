@@ -43,6 +43,7 @@ import {
   Users, BarChart3, Heart, Upload, Download,
   Briefcase, Home, Church, Cake, HeartPulse, Tag, Sparkles,
   Repeat, ChevronDown, Activity, Wallet, Flame, Timer, Boxes, Gauge,
+  ArrowUp, ArrowDown, ArrowUpDown,
 } from 'lucide-react';
 
 type DetailTab = 'overview' | 'purchases' | 'credit' | 'interactions';
@@ -171,6 +172,8 @@ export default function CustomersPage() {
   const [filterType, setFilterType] = useState<CustomerType | 'All'>('All');
   const [filterSegmentIds, setFilterSegmentIds] = useState<string[]>([]);
   const [segmentFilterOpen, setSegmentFilterOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<'total_orders' | 'total_spent' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [page, setPage] = useState(1);
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -189,7 +192,7 @@ export default function CustomersPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, filterType, filterSegmentIds, hubScope.hubIdForApi, metricsPeriod.apiParams]);
+  }, [debouncedSearch, filterType, filterSegmentIds, sortBy, sortDir, hubScope.hubIdForApi, metricsPeriod.apiParams]);
 
   const { data: customerList, isLoading: customersLoading, isFetching: customersFetching } = useCustomers({
     search: debouncedSearch || undefined,
@@ -198,6 +201,8 @@ export default function CustomersPage() {
     segment_ids: filterSegmentIds.length ? filterSegmentIds : undefined,
     page,
     limit: CUSTOMERS_PAGE_SIZE,
+    sort_by: sortBy ?? undefined,
+    sort_dir: sortBy ? sortDir : undefined,
     ...metricsPeriod.apiParams,
   });
   const customers = customerList?.items ?? [];
@@ -282,6 +287,22 @@ export default function CustomersPage() {
   };
 
   const getStatus = (c: Customer) => c.totalOrders > 1 ? 'Repeat' : 'New';
+
+  const toggleSort = (field: 'total_orders' | 'total_spent') => {
+    if (sortBy === field) {
+      setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortBy(field);
+      setSortDir('desc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: 'total_orders' | 'total_spent' }) => {
+    if (sortBy !== field) return <ArrowUpDown size={12} className="text-muted-foreground/50" />;
+    return sortDir === 'asc'
+      ? <ArrowUp size={12} className="text-primary" />
+      : <ArrowDown size={12} className="text-primary" />;
+  };
   const getGrade = (c: Customer) => {
     if (c.totalOrders <= 1) return null;
     if (c.totalSpent >= 500000) return 'Gold';
@@ -789,8 +810,26 @@ export default function CustomersPage() {
                 <th className="h-12 px-4 text-left font-medium text-muted-foreground">Contact</th>
                 <th className="h-12 px-4 text-left font-medium text-muted-foreground">Type</th>
                 <th className="h-12 px-4 text-left font-medium text-muted-foreground">Segments</th>
-                <th className="h-12 px-4 text-right font-medium text-muted-foreground">Orders</th>
-                <th className="h-12 px-4 text-right font-medium text-muted-foreground">Revenue</th>
+                <th className="h-12 px-4 text-right font-medium text-muted-foreground">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('total_orders')}
+                    className="inline-flex items-center gap-1 ml-auto hover:text-foreground"
+                  >
+                    Orders
+                    <SortIcon field="total_orders" />
+                  </button>
+                </th>
+                <th className="h-12 px-4 text-right font-medium text-muted-foreground">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('total_spent')}
+                    className="inline-flex items-center gap-1 ml-auto hover:text-foreground"
+                  >
+                    Revenue
+                    <SortIcon field="total_spent" />
+                  </button>
+                </th>
                 <th className="h-12 px-4 text-center font-medium text-muted-foreground">Score</th>
                 <th className="h-12 px-4 text-left font-medium text-muted-foreground w-8"></th>
               </tr>

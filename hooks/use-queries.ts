@@ -725,6 +725,8 @@ export function useCustomers(filters?: {
   date_to?: string;
   page?: number;
   limit?: number;
+  sort_by?: 'total_orders' | 'total_spent';
+  sort_dir?: 'asc' | 'desc';
 }, options?: { enabled?: boolean }) {
   const qc = useQueryClient();
   return useQuery({
@@ -752,6 +754,8 @@ export function useCustomers(filters?: {
         date_to: filters?.date_to,
         page: filters?.page,
         limit: filters?.limit,
+        sort_by: filters?.sort_by,
+        sort_dir: filters?.sort_dir,
       };
       const raw = await axiosGet(`customers${buildQuery(params)}`, true);
       const parsed = parseCustomerListResponse(raw);

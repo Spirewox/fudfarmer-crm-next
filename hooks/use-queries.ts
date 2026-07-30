@@ -33,6 +33,10 @@ import {
   ApiDashboardMetricsRaw,
   DashboardMetricsData,
   InventorySalesMetrics,
+  ApiProductSupplierRow,
+  ApiProductSalesPerformance,
+  ProductSupplierRow,
+  ProductSalesPerformance,
   DashboardPeriod,
   DashboardSalesSummary,
   DashboardCategoryRevenue,
@@ -73,6 +77,8 @@ import {
   mapStockLog,
   mapSupplier,
   mapSupplierIssue,
+  mapProductSupplierRow,
+  mapProductSalesPerformance,
   mapAgent,
   mapFeedback,
   mapEnquiry,
@@ -1368,13 +1374,57 @@ export function useUpdateProduct() {
   });
 }
 
-export function useStockLogs(filters?: { item_id?: string; hub_id?: string; type?: string; date_from?: string; date_to?: string }) {
+export function useStockLogs(filters?: { item_id?: string; hub_id?: string; type?: string; date_from?: string; date_to?: string; page?: number; limit?: number }) {
   return useQuery({
     queryKey: ['stockLogs', filters],
     queryFn: async () => {
       if (!HAS_API) return [];
       const res = await axiosGet(`inventory/stock-logs${buildQuery(filters ?? {})}`, true) as ApiListResponse<ApiStockLog[]>;
       return (res.data ?? []).map(mapStockLog);
+    },
+  });
+}
+
+export function useProductSuppliers(productId: string | null) {
+  return useQuery({
+    queryKey: ['product-suppliers', productId],
+    enabled: !!productId,
+    queryFn: async (): Promise<ProductSupplierRow[]> => {
+      if (!productId || !HAS_API) return [];
+      const res = await axiosGet(
+        `inventory/${productId}/suppliers`,
+        true,
+      ) as ApiListResponse<ApiProductSupplierRow[]>;
+      return (res.data ?? []).map(mapProductSupplierRow);
+    },
+  });
+}
+
+export function useProductSalesPerformance(productId: string | null) {
+  return useQuery({
+    queryKey: ['product-sales-performance', productId],
+    enabled: !!productId,
+    queryFn: async (): Promise<ProductSalesPerformance | null> => {
+      if (!productId || !HAS_API) return null;
+      const res = await axiosGet(
+        `inventory/${productId}/sales-performance`,
+        true,
+      ) as ApiListResponse<ApiProductSalesPerformance>;
+      return mapProductSalesPerformance(res.data);
+    },
+  });
+}
+
+export function useCustomer(id: string | null) {
+  return useQuery({
+    queryKey: ['customer', id],
+    enabled: !!id,
+    queryFn: async () => {
+      if (!id || !HAS_API) return null;
+      const hubMap = await fetchHubMap();
+      const raw = await axiosGet(`customers/${id}`, true);
+      const entity = unwrapApiEntity<ApiCustomer>(raw);
+      return mapCustomer(entity, hubMap);
     },
   });
 }
@@ -1390,6 +1440,8 @@ export function useRecordStockMove() {
       qc.invalidateQueries({ queryKey: ['stockLogs'] });
       qc.invalidateQueries({ queryKey: ['inventory'] });
       qc.invalidateQueries({ queryKey: ['supplierPurchases'] });
+      qc.invalidateQueries({ queryKey: ['product-suppliers'] });
+      qc.invalidateQueries({ queryKey: ['product-sales-performance'] });
     },
   });
 }

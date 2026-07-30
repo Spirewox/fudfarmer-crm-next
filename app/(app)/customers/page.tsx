@@ -6,6 +6,7 @@ import {
   useCustomers, useCreateCustomer, useUpdateCustomer, useAgents,
   useCustomerCredits, useSales, useFeedback, useEnquiries, useCompensations, useHubs,
   useDownloadCustomerImportTemplate, useValidateCustomerImport, useImportCustomers, useSegments,
+  useCustomer,
 } from '@/hooks/use-queries';
 import {
   Customer, CustomerType,
@@ -556,6 +557,27 @@ export default function CustomersPage() {
     setIsEditing(false);
     setExpandedSaleId(null);
   };
+
+  // Deep-link: open a customer from ?open=<id> (e.g. inventory Sales top buyers)
+  const deepLinkOpenId = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get('open');
+  }, []);
+  const { data: deepLinkCustomer } = useCustomer(deepLinkOpenId);
+  const deepLinkHandled = useRef(false);
+  useEffect(() => {
+    if (deepLinkHandled.current || !deepLinkOpenId) return;
+    const fromList = customers.find((c) => c.id === deepLinkOpenId);
+    if (fromList) {
+      deepLinkHandled.current = true;
+      handleViewDetails(fromList);
+      return;
+    }
+    if (deepLinkCustomer) {
+      deepLinkHandled.current = true;
+      handleViewDetails(deepLinkCustomer);
+    }
+  }, [customers, deepLinkOpenId, deepLinkCustomer]);
 
   const handleCustomerImportFile = (file?: File) => {
     if (!file) return;

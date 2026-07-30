@@ -16,6 +16,10 @@ import {
   ApiCreditCustomerSummary,
   ApiDashboardMetricsRaw,
   DashboardMetricsData,
+  ApiProductSupplierRow,
+  ApiProductSalesPerformance,
+  ProductSupplierRow,
+  ProductSalesPerformance,
 } from '@/types/api';
 import { customerTypeFromApi } from '@/lib/customer-helpers';
 import {
@@ -340,6 +344,56 @@ export function mapSupplierIssue(i: ApiSupplierIssue): SupplierIssue {
     reportedByAgentName: i.reported_by_name || reported?.full_name,
     relatedItemId: refId(i.related_item) || undefined,
     relatedStockLogId: typeof i.related_stock_log === 'string' ? i.related_stock_log : undefined,
+  };
+}
+
+export function mapProductSupplierRow(row: ApiProductSupplierRow): ProductSupplierRow {
+  return {
+    supplierId: row.supplier_id || undefined,
+    name: row.name,
+    rating: row.rating ?? undefined,
+    openIssues: row.open_issues ?? 0,
+    orders: row.orders ?? 0,
+    qty: row.qty ?? 0,
+    spend: row.spend ?? 0,
+    lastPrice: row.last_price ?? 0,
+    lastDate: toDateStr(row.last_date),
+  };
+}
+
+export function mapProductSalesPerformance(
+  data: ApiProductSalesPerformance | null | undefined,
+): ProductSalesPerformance | null {
+  if (!data) return null;
+  return {
+    hasData: Boolean(data.has_data),
+    units: data.units ?? 0,
+    revenue: data.revenue ?? 0,
+    cogs: data.cogs ?? 0,
+    profit: data.profit ?? 0,
+    margin: data.margin ?? 0,
+    orders: data.orders ?? 0,
+    trend: data.trend ?? [],
+    b2bRev: data.b2b_rev ?? 0,
+    b2cRev: data.b2c_rev ?? 0,
+    topSegments: data.top_segments ?? [],
+    channelMix: data.channel_mix ?? [],
+    byCustomer: (data.by_customer ?? []).map((c) => {
+      const typeRaw = String(c.type || '').toLowerCase();
+      const type =
+        typeRaw === 'b2b' ? 'B2B' : typeRaw === 'b2c' ? 'B2C' : c.type || null;
+      return {
+        id: c.id || null,
+        name: c.name,
+        type,
+        topSegment: c.top_segment ?? null,
+        qty: c.qty ?? 0,
+        revenue: c.revenue ?? 0,
+        last: toDateStr(c.last),
+      };
+    }),
+    unitsPerMonth: data.units_per_month ?? 0,
+    daysOfCover: data.days_of_cover ?? null,
   };
 }
 

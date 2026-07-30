@@ -11,11 +11,12 @@ import {
   useInventory, useCreateProduct, useUpdateProduct, useStockLogs,
   useRecordStockMove, useTransferStock, useBatchStockUpdate, useHubs,
   useDownloadInventoryImportTemplate, useValidateInventoryImport, useImportInventory,
-  useInventorySalesMetrics, useSuppliers,
+  useInventorySalesMetrics, useSuppliers, useProductSuppliers, useProductSalesPerformance,
 } from '@/hooks/use-queries';
 import { InventoryItem, StockLog, StockMovementType } from '@/types';
 import type { InventoryImportPreviewRow } from '@/types/api';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { PRODUCT_CATEGORIES } from '@/lib/product-categories';
 import { InventoryImportModal } from './inventory-import-modal';
 import { InventoryRequestsPanel } from './inventory-requests-panel';
@@ -167,6 +168,7 @@ function getUniqueSuppliers(logs: StockLog[]): string[] {
 
 export default function InventoryPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const { can, isAdmin } = usePermissions();
   const hubScope = useHubScopeFilter();
   const metricsPeriod = useMetricsPeriod('month');
@@ -225,7 +227,7 @@ export default function InventoryPage() {
 
   // Detail panel
   const [viewingDetailsItem, setViewingDetailsItem] = useState<InventoryItem | null>(null);
-  const [detailTab, setDetailTab] = useState<'overview' | 'batches' | 'history' | 'activity'>('overview');
+  const [detailTab, setDetailTab] = useState<'overview' | 'suppliers' | 'sales' | 'batches' | 'history' | 'activity'>('overview');
 
   // Selected product for stock move
   const [selectedProduct, setSelectedProduct] = useState<InventoryItem | null>(null);
@@ -389,6 +391,16 @@ export default function InventoryPage() {
     if (!viewingDetailsItem || !viewingDetailsItem.baseSellingPrice) return 0;
     return ((viewingDetailsItem.baseSellingPrice - viewingDetailsItem.avgUnitCost) / viewingDetailsItem.baseSellingPrice) * 100;
   }, [viewingDetailsItem]);
+
+  const detailProductId = viewingDetailsItem?.id ?? null;
+  const { data: itemSuppliers = [] } = useProductSuppliers(detailProductId);
+  const cheapestSupplierPrice = useMemo(
+    () => (itemSuppliers.length ? Math.min(...itemSuppliers.map((s) => s.lastPrice)) : 0),
+    [itemSuppliers],
+  );
+  const { data: itemSalesPerf } = useProductSalesPerformance(
+    detailProductId && detailTab === 'sales' ? detailProductId : null,
+  );
 
   /* ──────── Helpers ──────── */
 
@@ -1384,16 +1396,18 @@ export default function InventoryPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b">
-              {(['overview', 'batches', 'history', 'activity'] as const).map((tab) => (
+            <div className="flex border-b overflow-x-auto">
+              {(['overview', 'suppliers', 'sales', 'batches', 'history', 'activity'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setDetailTab(tab)}
-                  className={`flex-1 py-3 text-xs font-medium text-center transition-colors ${detailTab === tab ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`flex-1 py-3 px-1 text-[11px] font-medium text-center transition-colors whitespace-nowrap ${detailTab === tab ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   {tab === 'overview' && 'Overview'}
+                  {tab === 'suppliers' && `Suppliers (${itemSuppliers.length})`}
+                  {tab === 'sales' && 'Sales'}
                   {tab === 'batches' && `Batches (${itemBatches.length})`}
-                  {tab === 'history' && 'Price History'}
+                  {tab === 'history' && 'Price'}
                   {tab === 'activity' && `Activity (${itemLogs.length})`}
                 </button>
               ))}
@@ -1495,6 +1509,236 @@ export default function InventoryPage() {
                       </button>
                     )}
                   </div>
+                </>
+              )}
+
+              {/* ── SUPPLIERS TAB ── */}
+              {detailTab === 'suppliers' && (
+                <>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Truck size={16} className="text-primary" />
+                    <h4 className="text-sm font-bold">Sourced From</h4>
+                  </div>
+                  {itemSuppliers.length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground border rounded-lg">
+                      <Truck size={28} className="mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">No supplier purchases recorded for this SKU yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {itemSuppliers.map((s) => {
+                        const isCheapest = Math.abs(s.lastPrice - cheapestSupplierPrice) < 0.01;
+                        const clickable = !!s.supplierId;
+                        return (
+                          <div
+                            key={s.supplierId || s.name}
+                            onClick={() => { if (s.supplierId) router.push(`/suppliers?open=${s.supplierId}`); }}
+                            className={`p-3 rounded-lg border transition-colors ${clickable ? 'cursor-pointer hover:border-primary/40 hover:bg-muted/30 group' : ''}`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className={`text-sm font-semibold ${clickable ? 'group-hover:text-primary' : ''}`}>{s.name}</span>
+                                  {clickable && <ArrowUpRight size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />}
+                                  {isCheapest && itemSuppliers.length > 1 && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700 border border-green-200">
+                                      <TrendingDown size={10} /> Cheapest
+                                    </span>
+                                  )}
+                                  {s.rating != null && (
+                                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-yellow-600">★ {s.rating}</span>
+                                  )}
+                                  {s.openIssues > 0 && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700 border border-red-200">
+                                      <AlertTriangle size={10} /> {s.openIssues} issue{s.openIssues !== 1 ? 's' : ''}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                                  <span>{s.orders} order{s.orders !== 1 ? 's' : ''}</span>
+                                  <span>{s.qty} {viewingDetailsItem.unitOfMeasure} bought</span>
+                                  <span className="inline-flex items-center gap-1"><Clock size={10} /> last {s.lastDate}</span>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-sm font-bold">
+                                  &#8358;{Math.round(s.lastPrice).toLocaleString()}
+                                  <span className="text-[10px] font-normal text-muted-foreground">/{viewingDetailsItem.unitOfMeasure}</span>
+                                </p>
+                                <p className="text-[11px] text-muted-foreground">spend &#8358;{Math.round(s.spend).toLocaleString()}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <p className="text-[11px] text-muted-foreground pt-1">
+                        Tap a vendor to open its full profile, order history &amp; issues in the{' '}
+                        <span className="font-medium">Suppliers</span> module.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* ── SALES TAB ── */}
+              {detailTab === 'sales' && (
+                <>
+                  <div className="flex items-center gap-2 mb-3">
+                    <BarChart4 size={16} className="text-primary" />
+                    <h4 className="text-sm font-bold">Retail Performance</h4>
+                  </div>
+                  {!itemSalesPerf?.hasData ? (
+                    <div className="p-8 text-center text-muted-foreground border rounded-lg">
+                      <BarChart4 size={28} className="mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">No retail sales recorded for this SKU yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-5">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 rounded-xl border bg-muted/20">
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground">Units Sold</p>
+                          <p className="text-xl font-black">
+                            {itemSalesPerf.units}{' '}
+                            <span className="text-xs font-medium text-muted-foreground">{viewingDetailsItem.unitOfMeasure}</span>
+                          </p>
+                        </div>
+                        <div className="p-3 rounded-xl border bg-muted/20">
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground">Revenue</p>
+                          <p className="text-xl font-black">&#8358;{Math.round(itemSalesPerf.revenue).toLocaleString()}</p>
+                        </div>
+                        <div className="p-3 rounded-xl border-2 border-green-200 bg-green-50/50">
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground">Gross Profit</p>
+                          <div className="flex items-baseline gap-1.5">
+                            <p className="text-xl font-black text-green-700">&#8358;{Math.round(itemSalesPerf.profit).toLocaleString()}</p>
+                            <span className="text-[10px] font-bold text-green-700">{itemSalesPerf.margin.toFixed(0)}%</span>
+                          </div>
+                        </div>
+                        <div className="p-3 rounded-xl border bg-muted/20">
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground">Sales Count</p>
+                          <p className="text-xl font-black">{itemSalesPerf.orders}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 rounded-xl border bg-muted/20">
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1">
+                            <Activity size={11} /> Sell Velocity
+                          </p>
+                          <p className="text-lg font-black">
+                            ≈{Math.round(itemSalesPerf.unitsPerMonth)}{' '}
+                            <span className="text-xs font-medium text-muted-foreground">{viewingDetailsItem.unitOfMeasure}/mo</span>
+                          </p>
+                        </div>
+                        <div className={`p-3 rounded-xl border ${itemSalesPerf.daysOfCover != null && itemSalesPerf.daysOfCover < 21 ? 'border-orange-300 bg-orange-50/60' : 'bg-muted/20'}`}>
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1">
+                            <Clock size={11} /> Days of Cover
+                          </p>
+                          <p className={`text-lg font-black ${itemSalesPerf.daysOfCover != null && itemSalesPerf.daysOfCover < 21 ? 'text-orange-700' : ''}`}>
+                            {itemSalesPerf.daysOfCover != null ? `≈${itemSalesPerf.daysOfCover}d` : '—'}
+                          </p>
+                          {itemSalesPerf.daysOfCover != null && itemSalesPerf.daysOfCover < 21 && itemSuppliers[0] && (
+                            <p className="text-[10px] text-orange-700">Reorder soon — via {itemSuppliers[0].name}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {(itemSalesPerf.b2bRev > 0 || itemSalesPerf.b2cRev > 0) && (() => {
+                        const tot = itemSalesPerf.b2bRev + itemSalesPerf.b2cRev;
+                        const b2bPct = tot > 0 ? Math.round((itemSalesPerf.b2bRev / tot) * 100) : 0;
+                        return (
+                          <div>
+                            <h4 className="text-xs font-bold uppercase text-muted-foreground mb-2">Buyer Mix</h4>
+                            <div className="flex h-6 w-full rounded-md overflow-hidden border text-[10px] font-bold text-white">
+                              {b2bPct > 0 && (
+                                <div className="bg-blue-500 flex items-center justify-center" style={{ width: `${b2bPct}%` }}>
+                                  {b2bPct >= 12 ? `B2B ${b2bPct}%` : ''}
+                                </div>
+                              )}
+                              {100 - b2bPct > 0 && (
+                                <div className="bg-primary flex items-center justify-center" style={{ width: `${100 - b2bPct}%` }}>
+                                  {100 - b2bPct >= 12 ? `B2C ${100 - b2bPct}%` : ''}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {itemSalesPerf.topSegments.length > 0 && (
+                        <div>
+                          <h4 className="text-xs font-bold uppercase text-muted-foreground mb-2">Bought Most By (Segments)</h4>
+                          <div className="flex flex-wrap gap-1.5">
+                            {itemSalesPerf.topSegments.map((s) => (
+                              <span key={s.name} className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium bg-muted/40">
+                                {s.name} <span className="text-muted-foreground">{s.pct}%</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {itemSalesPerf.trend.length > 1 && (
+                        <div>
+                          <h4 className="text-xs font-bold uppercase text-muted-foreground mb-2">Monthly Revenue</h4>
+                          <div className="space-y-1.5">
+                            {(() => {
+                              const max = Math.max(...itemSalesPerf.trend.map((t) => t.amount)) || 1;
+                              return itemSalesPerf.trend.map((t) => (
+                                <div key={t.month} className="flex items-center gap-2">
+                                  <span className="text-[10px] text-muted-foreground w-10 shrink-0">{t.month}</span>
+                                  <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(3, (t.amount / max) * 100)}%` }} />
+                                  </div>
+                                  <span className="text-[10px] font-medium w-16 text-right shrink-0">&#8358;{Math.round(t.amount).toLocaleString()}</span>
+                                </div>
+                              ));
+                            })()}
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <h4 className="text-xs font-bold uppercase text-muted-foreground mb-2">
+                          Top Buyers ({itemSalesPerf.byCustomer.length})
+                        </h4>
+                        <div className="space-y-1.5">
+                          {itemSalesPerf.byCustomer.slice(0, 6).map((c) => {
+                            const share = itemSalesPerf.revenue > 0 ? Math.round((c.revenue / itemSalesPerf.revenue) * 100) : 0;
+                            const clickable = !!c.id;
+                            return (
+                              <div
+                                key={`${c.id || c.name}-${c.last}`}
+                                onClick={() => { if (c.id) router.push(`/customers?open=${c.id}`); }}
+                                className={`flex items-center justify-between p-2.5 rounded-lg border text-sm ${clickable ? 'cursor-pointer hover:border-primary/40 hover:bg-muted/30 group' : ''}`}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`font-medium truncate ${clickable ? 'group-hover:text-primary' : ''}`}>{c.name}</span>
+                                    {clickable && <ArrowUpRight size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    {c.type && (
+                                      <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold ${c.type === 'B2B' ? 'bg-blue-100 text-blue-700' : 'bg-primary/10 text-primary'}`}>
+                                        {c.type}
+                                      </span>
+                                    )}
+                                    {c.topSegment && <span className="text-[10px] text-muted-foreground truncate">{c.topSegment}</span>}
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-xs">
+                                    <span className="font-semibold">&#8358;{Math.round(c.revenue).toLocaleString()}</span>{' '}
+                                    <span className="text-muted-foreground">· {share}%</span>
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground">{c.qty} {viewingDetailsItem.unitOfMeasure}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 

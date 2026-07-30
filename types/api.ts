@@ -794,6 +794,82 @@ export interface InventorySalesMetrics {
   mealsServed: number;
 }
 
+export interface ApiProductSupplierRow {
+  supplier_id?: string | null;
+  name: string;
+  rating?: number | null;
+  open_issues: number;
+  orders: number;
+  qty: number;
+  spend: number;
+  last_price: number;
+  last_date?: string | Date | null;
+}
+
+export interface ApiProductSalesPerformance {
+  has_data: boolean;
+  units: number;
+  revenue: number;
+  cogs: number;
+  profit: number;
+  margin: number;
+  orders: number;
+  trend: { month: string; amount: number }[];
+  b2b_rev: number;
+  b2c_rev: number;
+  top_segments: { name: string; pct: number }[];
+  channel_mix: { name: string; pct: number }[];
+  by_customer: {
+    id: string;
+    name: string;
+    type: string;
+    top_segment?: string | null;
+    qty: number;
+    revenue: number;
+    last?: string | Date | null;
+  }[];
+  units_per_month: number;
+  days_of_cover: number | null;
+}
+
+export interface ProductSupplierRow {
+  supplierId?: string;
+  name: string;
+  rating?: number;
+  openIssues: number;
+  orders: number;
+  qty: number;
+  spend: number;
+  lastPrice: number;
+  lastDate: string;
+}
+
+export interface ProductSalesPerformance {
+  hasData: boolean;
+  units: number;
+  revenue: number;
+  cogs: number;
+  profit: number;
+  margin: number;
+  orders: number;
+  trend: { month: string; amount: number }[];
+  b2bRev: number;
+  b2cRev: number;
+  topSegments: { name: string; pct: number }[];
+  channelMix: { name: string; pct: number }[];
+  byCustomer: {
+    id: string | null;
+    name: string;
+    type: string | null;
+    topSegment: string | null;
+    qty: number;
+    revenue: number;
+    last: string;
+  }[];
+  unitsPerMonth: number;
+  daysOfCover: number | null;
+}
+
 export interface CustomerImportResult {
   processed?: number;
   imported: number;

@@ -98,6 +98,26 @@ export default function DashboardPage() {
     };
   }, [salesSummary]);
 
+  // Period-aware chart styling: denser month/all series need stronger emerald contrast
+  const salesChartStyle = useMemo(() => {
+    const densePeriod = period === 'month' || period === 'all';
+    const pointCount = salesData.trend.length;
+    return {
+      strokeColor: '#059669', // emerald-600 — readable on light & dark cards
+      topOpacity: densePeriod ? 0.45 : 0.28,
+      midOpacity: densePeriod ? 0.22 : 0.12,
+      bottomOpacity: densePeriod ? 0.08 : 0.02,
+      strokeWidth: densePeriod ? 2.5 : 2,
+      xInterval:
+        period === 'all'
+          ? Math.max(0, Math.ceil(pointCount / 8) - 1)
+          : period === 'month'
+            ? Math.max(0, Math.ceil(pointCount / 10) - 1)
+            : 0,
+      minTickGap: period === 'all' ? 28 : 16,
+    };
+  }, [period, salesData.trend.length]);
+
   const categoryData = useMemo(
     () =>
       (categoryRevenue?.categories ?? []).map((cat) => ({
@@ -369,22 +389,39 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Chart */}
+          {/* Chart — denser periods (month/all) get stronger emerald contrast */}
           <div className="h-[240px]">
             {salesData.trend.length > 1 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={salesData.trend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      <stop offset="0%" stopColor={salesChartStyle.strokeColor} stopOpacity={salesChartStyle.topOpacity} />
+                      <stop offset="55%" stopColor={salesChartStyle.strokeColor} stopOpacity={salesChartStyle.midOpacity} />
+                      <stop offset="100%" stopColor={salesChartStyle.strokeColor} stopOpacity={salesChartStyle.bottomOpacity} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} dy={8} />
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    interval={salesChartStyle.xInterval}
+                    minTickGap={salesChartStyle.minTickGap}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                    dy={8}
+                  />
                   <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} tickFormatter={(v) => `${NAIRA}${(v / 1000).toFixed(0)}k`} />
                   <Tooltip {...TT} formatter={(value) => fmt(Number(value))} />
-                  <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#salesGrad)" />
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke={salesChartStyle.strokeColor}
+                    strokeWidth={salesChartStyle.strokeWidth}
+                    fill="url(#salesGrad)"
+                    fillOpacity={1}
+                    activeDot={{ r: 4, strokeWidth: 0, fill: salesChartStyle.strokeColor }}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             ) : salesData.trend.length === 1 ? (

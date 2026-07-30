@@ -22,7 +22,7 @@ import {
 } from '@/types/api';
 import { CustomerImportModal } from './customer-import-modal';
 import { toast } from 'sonner';
-import { isPlaceholderEmail, isB2bCustomerType, customerPhoneForApi } from '@/lib/customer-helpers';
+import { isB2bCustomerType, customerPhoneForApi, customerEmailForApi } from '@/lib/customer-helpers';
 import { hubOptionLabel } from '@/lib/api-mappers';
 import { deriveSegments, SEGMENT_GROUP_OF, SEGMENT_TAXONOMY } from '@/lib/segmentation';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -336,20 +336,21 @@ export default function CustomersPage() {
 
   // --- Add Customer ---
   const handleSaveCustomer = async () => {
-    if (!newCustomer.name || !newCustomer.email) { toast.error('Please enter Name and Email.'); return; }
+    if (!newCustomer.name?.trim()) { toast.error('Please enter a name.'); return; }
     if (isB2bCustomerType(newCustomer.type) && !newCustomer.companyName?.trim()) {
       toast.error('Company name is required for B2B customers.');
       return;
     }
-    if (!isPlaceholderEmail(newCustomer.email)) {
-      const dup = customers.find((c) => c.email.toLowerCase() === newCustomer.email!.toLowerCase());
-      if (dup) { toast.error(`A customer with email "${newCustomer.email}" already exists.`); return; }
+    const email = customerEmailForApi(newCustomer.email);
+    if (email) {
+      const dup = customers.find((c) => c.email && c.email.toLowerCase() === email);
+      if (dup) { toast.error(`A customer with email "${email}" already exists.`); return; }
     }
     const hub = activeHubs.find((h) => h.name === (newCustomer.location || activeHubs[0]?.name));
     const isB2b = isB2bCustomerType(newCustomer.type);
     createCustomer.mutate({
       customer_name: newCustomer.name!,
-      customer_email: newCustomer.email!,
+      ...(email ? { customer_email: email } : {}),
       customer_phone: customerPhoneForApi(newCustomer.phone),
       customer_type: newCustomer.type as CustomerType,
       customer_location: hub?.id || activeHubs[0]?.id || '',
@@ -382,7 +383,7 @@ export default function CustomersPage() {
   };
 
   const handleUpdateCustomer = async () => {
-    if (!editForm.name || !editForm.email || !selectedCustomer) { toast.error('Name and Email are required.'); return; }
+    if (!editForm.name?.trim() || !selectedCustomer) { toast.error('Name is required.'); return; }
     if (isB2bCustomerType(editForm.type) && !editForm.companyName?.trim()) {
       toast.error('Company name is required for B2B customers.');
       return;
@@ -392,7 +393,7 @@ export default function CustomersPage() {
     updateCustomer.mutate({
       id: selectedCustomer.id,
       customer_name: editForm.name,
-      customer_email: editForm.email,
+      customer_email: customerEmailForApi(editForm.email) ?? '',
       customer_phone: customerPhoneForApi(editForm.phone),
       customer_type: editForm.type,
       customer_location: hub?.id,
@@ -877,7 +878,7 @@ export default function CustomersPage() {
                     </td>
                     <td className="p-4">
                       <div className="flex flex-col text-sm">
-                        <span className="text-muted-foreground truncate max-w-[180px]">{customer.email}</span>
+                        <span className="text-muted-foreground truncate max-w-[180px]">{customer.email || '—'}</span>
                         <span className="text-xs text-muted-foreground">{customer.phone}</span>
                       </div>
                     </td>
@@ -949,7 +950,7 @@ export default function CustomersPage() {
             <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold">Add New Customer</h2><button onClick={() => setShowAddModal(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2"><label className="text-sm font-medium">Full Name *</label><input type="text" value={newCustomer.name} onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" /></div>
-              <div className="space-y-2"><label className="text-sm font-medium">Email *</label><input type="email" value={newCustomer.email} onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" /></div>
+              <div className="space-y-2"><label className="text-sm font-medium">Email</label><input type="email" value={newCustomer.email} onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })} placeholder="Optional" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" /></div>
               <div className="space-y-2"><label className="text-sm font-medium">Phone</label><input type="text" value={newCustomer.phone} onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" /></div>
               <div className="space-y-2"><label className="text-sm font-medium">Type</label><select value={newCustomer.type} onChange={(e) => { const type = e.target.value as CustomerType; setNewCustomer({ ...newCustomer, type, companyName: type === CustomerType.B2C ? '' : newCustomer.companyName, ...clearOppositeProfileFields(type) }); }} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"><option value={CustomerType.B2C}>B2C</option><option value={CustomerType.B2B}>B2B</option></select></div>
               {isB2bCustomerType(newCustomer.type) && (
@@ -1169,8 +1170,8 @@ export default function CustomersPage() {
                   <div className="space-y-3 text-sm">
                     <h4 className="text-xs font-bold uppercase text-muted-foreground">Contact Information</h4>
                     <div className="flex items-center gap-2 justify-between">
-                      <div className="flex items-center gap-2"><Mail size={14} className="text-muted-foreground" /> {selectedCustomer.email}</div>
-                      <button onClick={() => copyToClipboard(selectedCustomer.email, 'email')} className="p-1 rounded hover:bg-accent">{copiedField === 'email' ? <Check size={14} className="text-green-600" /> : <Copy size={14} className="text-muted-foreground" />}</button>
+                      <div className="flex items-center gap-2"><Mail size={14} className="text-muted-foreground" /> {selectedCustomer.email || 'N/A'}</div>
+                      {selectedCustomer.email && <button onClick={() => copyToClipboard(selectedCustomer.email!, 'email')} className="p-1 rounded hover:bg-accent">{copiedField === 'email' ? <Check size={14} className="text-green-600" /> : <Copy size={14} className="text-muted-foreground" />}</button>}
                     </div>
                     <div className="flex items-center gap-2 justify-between">
                       <div className="flex items-center gap-2"><Phone size={14} className="text-muted-foreground" /> {selectedCustomer.phone || 'N/A'}</div>
@@ -1292,8 +1293,8 @@ export default function CustomersPage() {
                       <input type="text" value={editForm.name || ''} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">Email *</label>
-                      <input type="email" value={editForm.email || ''} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                      <label className="text-xs font-medium text-muted-foreground">Email</label>
+                      <input type="email" value={editForm.email || ''} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} placeholder="Optional" className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Phone</label>

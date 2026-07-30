@@ -473,6 +473,9 @@ export interface ApiDashboardMetricsRaw {
 
 export type DashboardPeriod = 'today' | 'week' | 'month' | 'all';
 
+/** Sales chart granularity tabs on the Dashboard. */
+export type DashboardTrendGranularity = 'day' | 'week' | 'month' | 'all';
+
 export interface DashboardSalesSummary {
   revenue: number;
   orders: number;
@@ -482,6 +485,8 @@ export interface DashboardSalesSummary {
   creditRevenue: number;
   walkInRevenue: number;
   deliveryRevenue: number;
+  /** Resolved rollup unit returned by the API when granularity was requested. */
+  granularity?: 'day' | 'week' | 'month';
   trend: { date: string; revenue: number }[];
 }
 

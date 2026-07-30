@@ -6,6 +6,13 @@ export function isPlaceholderEmail(email?: string | null): boolean {
   return PLACEHOLDER_EMAILS.has((email ?? '').trim().toLowerCase());
 }
 
+/** Omit empty/placeholder emails from API payloads. */
+export function customerEmailForApi(email?: string | null): string | undefined {
+  const trimmed = (email ?? '').trim();
+  if (isPlaceholderEmail(trimmed)) return undefined;
+  return trimmed.toLowerCase();
+}
+
 /** Backend expects lowercase b2c / b2b; UI uses B2C / B2B. */
 export function customerTypeToApi(type?: string | null): ApiCustomerType {
   return String(type ?? '').toLowerCase() === 'b2b' ? 'b2b' : 'b2c';

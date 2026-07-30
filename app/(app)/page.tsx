@@ -2,10 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/auth-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useDashboardMetrics, useDashboardSalesSummary, useDashboardRevenueByCategory, useSales } from '@/hooks/use-queries';
-import type { DashboardPeriod } from '@/types/api';
+import type { DashboardPeriod, DashboardTrendGranularity } from '@/types/api';
 import { EMPTY_DASHBOARD_SALES_SUMMARY } from '@/types/api';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -35,16 +34,79 @@ const CAT_COLORS = PRODUCT_CATEGORY_COLORS;
 
 const CREDIT_COLORS = ['#f59e0b', '#ef4444', '#16a34a'];
 
+const SALES_GRANULARITY_OPTIONS: { value: DashboardTrendGranularity; label: string; caption: string }[] = [
+  { value: 'day', label: 'Daily', caption: 'Last 30 days' },
+  { value: 'week', label: 'Weekly', caption: 'Last 12 weeks' },
+  { value: 'month', label: 'Monthly', caption: 'Last 12 months' },
+  { value: 'all', label: 'All', caption: 'All time (by month)' },
+];
+
+const CATEGORY_PERIOD_OPTIONS: { value: DashboardPeriod; label: string }[] = [
+  { value: 'today', label: 'Daily' },
+  { value: 'week', label: 'Weekly' },
+  { value: 'month', label: 'Monthly' },
+  { value: 'all', label: 'All' },
+];
+
+function PeriodTabs<T extends string>({
+  value,
+  onChange,
+  options,
+}: Readonly<{
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: string }[];
+}>) {
+  return (
+    <div className="flex items-center gap-0.5 bg-muted/40 p-0.5 rounded-lg border">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+            value === opt.value
+              ? 'bg-background shadow-sm text-foreground'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function formatTrendLabel(
+  isoKey: string,
+  unit: 'day' | 'week' | 'month',
+): string {
+  if (unit === 'month') {
+    const d = new Date(`${isoKey}-01T00:00:00.000Z`);
+    return d.toLocaleDateString(undefined, { month: 'short', year: '2-digit', timeZone: 'UTC' });
+  }
+  if (unit === 'week') {
+    const start = new Date(`${isoKey}T00:00:00.000Z`);
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 6);
+    const fmtDay = (x: Date) =>
+      x.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    return `${fmtDay(start)} – ${fmtDay(end)}`;
+  }
+  const d = new Date(`${isoKey}T00:00:00.000Z`);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
 export default function DashboardPage() {
   const router = useRouter();
-  const [period, setPeriod] = useState<DashboardPeriod>('month');
+  const [salesGranularity, setSalesGranularity] = useState<DashboardTrendGranularity>('day');
   const [catPeriod, setCatPeriod] = useState<DashboardPeriod>('month');
   const [custFilter, setCustFilter] = useState<'all' | 'B2B' | 'B2C'>('all');
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
   const { can, isAdmin, user } = usePermissions();
   const { data: metrics } = useDashboardMetrics();
-  const { data: salesSummary } = useDashboardSalesSummary(period);
+  const { data: salesSummary, isFetching: salesFetching } = useDashboardSalesSummary(salesGranularity);
   const { data: categoryRevenue } = useDashboardRevenueByCategory(catPeriod);
   const { data: customerSalesResult } = useSales(
     {
@@ -80,8 +142,19 @@ export default function DashboardPage() {
     totalCustomers: 0, newCustomersThisMonth: 0, totalOutstanding: 0,
   };
 
+  const salesTrendUnit: 'day' | 'week' | 'month' = (() => {
+    if (salesSummary?.granularity) return salesSummary.granularity;
+    if (salesGranularity === 'week') return 'week';
+    if (salesGranularity === 'month' || salesGranularity === 'all') return 'month';
+    return 'day';
+  })();
+
+  const salesWindowCaption =
+    SALES_GRANULARITY_OPTIONS.find((o) => o.value === salesGranularity)?.caption ?? '';
+
   const salesData = useMemo(() => {
     const s = salesSummary ?? EMPTY_DASHBOARD_SALES_SUMMARY;
+    const unit = s.granularity ?? salesTrendUnit;
     return {
       revenue: s.revenue,
       orders: s.orders,
@@ -92,31 +165,25 @@ export default function DashboardPage() {
       walkIn: s.walkInRevenue,
       delivery: s.deliveryRevenue,
       trend: s.trend.map((row) => ({
-        date: new Date(row.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        date: formatTrendLabel(row.date, unit),
+        rawDate: row.date,
         revenue: row.revenue,
       })),
     };
-  }, [salesSummary]);
+  }, [salesSummary, salesTrendUnit]);
 
-  // Period-aware chart styling: denser month/all series need stronger emerald contrast
+  // Dense series (month buckets for All, or many day points) get stronger emerald contrast
   const salesChartStyle = useMemo(() => {
-    const densePeriod = period === 'month' || period === 'all';
-    const pointCount = salesData.trend.length;
+    const dense = salesGranularity === 'month' || salesGranularity === 'all' || salesData.trend.length > 14;
     return {
-      strokeColor: '#059669', // emerald-600 — readable on light & dark cards
-      topOpacity: densePeriod ? 0.45 : 0.28,
-      midOpacity: densePeriod ? 0.22 : 0.12,
-      bottomOpacity: densePeriod ? 0.08 : 0.02,
-      strokeWidth: densePeriod ? 2.5 : 2,
-      xInterval:
-        period === 'all'
-          ? Math.max(0, Math.ceil(pointCount / 8) - 1)
-          : period === 'month'
-            ? Math.max(0, Math.ceil(pointCount / 10) - 1)
-            : 0,
-      minTickGap: period === 'all' ? 28 : 16,
+      strokeColor: '#059669',
+      topOpacity: dense ? 0.45 : 0.28,
+      midOpacity: dense ? 0.22 : 0.12,
+      bottomOpacity: dense ? 0.08 : 0.02,
+      strokeWidth: dense ? 2.5 : 2,
+      chartMinWidth: Math.max(salesData.trend.length * 44, 0),
     };
-  }, [period, salesData.trend.length]);
+  }, [salesGranularity, salesData.trend.length]);
 
   const categoryData = useMemo(
     () =>
@@ -198,17 +265,6 @@ export default function DashboardPage() {
       .filter((s) => s.customerId === selectedCustomer.id)
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [selectedCustomer, customerSalesResult]);
-
-  const PeriodTabs = ({ value, onChange }: { value: DashboardPeriod; onChange: (p: DashboardPeriod) => void }) => (
-    <div className="flex items-center gap-0.5 bg-muted/40 p-0.5 rounded-lg border">
-      {([['today', 'Daily'], ['week', 'Weekly'], ['month', 'Monthly'], ['all', 'All']] as [DashboardPeriod, string][]).map(([p, label]) => (
-        <button key={p} onClick={() => onChange(p)}
-          className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${value === p ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-          {label}
-        </button>
-      ))}
-    </div>
-  );
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 max-w-[1400px] mx-auto">
@@ -347,12 +403,17 @@ export default function DashboardPage() {
            1. SALES
          ═══════════════════════════════════════ */}
       <div className="rounded-xl border bg-card shadow-sm">
-        <div className="flex items-center justify-between p-5 border-b">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-5 border-b">
           <div className="flex items-center gap-2">
             <Banknote size={16} className="text-emerald-600" />
             <h2 className="text-sm font-bold">Sales</h2>
+            <span className="text-[10px] font-medium text-muted-foreground">{salesWindowCaption}</span>
           </div>
-          <PeriodTabs value={period} onChange={setPeriod} />
+          <PeriodTabs
+            value={salesGranularity}
+            onChange={setSalesGranularity}
+            options={SALES_GRANULARITY_OPTIONS}
+          />
         </div>
 
         <div className="p-5">
@@ -389,51 +450,84 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Chart — denser periods (month/all) get stronger emerald contrast */}
-          <div className="h-[240px]">
-            {salesData.trend.length > 1 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={salesData.trend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={salesChartStyle.strokeColor} stopOpacity={salesChartStyle.topOpacity} />
-                      <stop offset="55%" stopColor={salesChartStyle.strokeColor} stopOpacity={salesChartStyle.midOpacity} />
-                      <stop offset="100%" stopColor={salesChartStyle.strokeColor} stopOpacity={salesChartStyle.bottomOpacity} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis
-                    dataKey="date"
-                    axisLine={false}
-                    tickLine={false}
-                    interval={salesChartStyle.xInterval}
-                    minTickGap={salesChartStyle.minTickGap}
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                    dy={8}
-                  />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} tickFormatter={(v) => `${NAIRA}${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip {...TT} formatter={(value) => fmt(Number(value))} />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke={salesChartStyle.strokeColor}
-                    strokeWidth={salesChartStyle.strokeWidth}
-                    fill="url(#salesGrad)"
-                    fillOpacity={1}
-                    activeDot={{ r: 4, strokeWidth: 0, fill: salesChartStyle.strokeColor }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : salesData.trend.length === 1 ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <p className="text-3xl font-black text-emerald-600">{fmt(salesData.trend[0].revenue)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{salesData.trend[0].date}</p>
-                </div>
+          {/* Chart — horizontally scrollable so dense series are not clipped */}
+          <div className="relative">
+            {salesFetching && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-background/60 text-xs font-medium text-muted-foreground">
+                Updating chart…
               </div>
-            ) : (
-              <div className="flex items-center justify-center h-full text-sm text-muted-foreground">No sales data for this period</div>
             )}
+            <div className="overflow-x-auto">
+              <div
+                className="h-[240px]"
+                style={{
+                  minWidth: Math.max(salesChartStyle.chartMinWidth, 320),
+                  width: '100%',
+                }}
+              >
+                {salesData.trend.length > 1 ? (
+                  <ResponsiveContainer width="100%" height="100%" minWidth={Math.max(salesChartStyle.chartMinWidth, 320)}>
+                    <AreaChart data={salesData.trend} margin={{ top: 10, right: 24, left: 0, bottom: 4 }}>
+                      <defs>
+                        <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={salesChartStyle.strokeColor} stopOpacity={salesChartStyle.topOpacity} />
+                          <stop offset="55%" stopColor={salesChartStyle.strokeColor} stopOpacity={salesChartStyle.midOpacity} />
+                          <stop offset="100%" stopColor={salesChartStyle.strokeColor} stopOpacity={salesChartStyle.bottomOpacity} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                      <XAxis
+                        dataKey="date"
+                        axisLine={false}
+                        tickLine={false}
+                        interval={0}
+                        padding={{ left: 8, right: 8 }}
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                        dy={8}
+                        angle={salesData.trend.length > 16 ? -35 : 0}
+                        textAnchor={salesData.trend.length > 16 ? 'end' : 'middle'}
+                        height={salesData.trend.length > 16 ? 50 : 30}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                        tickFormatter={(v) => `${NAIRA}${(v / 1000).toFixed(0)}k`}
+                        width={48}
+                      />
+                      <Tooltip
+                        {...TT}
+                        formatter={(value) => fmt(Number(value))}
+                        labelFormatter={(label, payload) => {
+                          const raw = payload?.[0]?.payload?.rawDate;
+                          return raw ? `${label}` : String(label);
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="revenue"
+                        stroke={salesChartStyle.strokeColor}
+                        strokeWidth={salesChartStyle.strokeWidth}
+                        fill="url(#salesGrad)"
+                        fillOpacity={1}
+                        activeDot={{ r: 4, strokeWidth: 0, fill: salesChartStyle.strokeColor }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : salesData.trend.length === 1 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <p className="text-3xl font-black text-emerald-600">{fmt(salesData.trend[0].revenue)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{salesData.trend[0].date}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                    {salesFetching ? 'Loading sales…' : 'No sales data for this window'}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -447,7 +541,11 @@ export default function DashboardPage() {
             <Package size={16} className="text-emerald-600" />
             <h2 className="text-sm font-bold">Revenue per Category</h2>
           </div>
-          <PeriodTabs value={catPeriod} onChange={setCatPeriod} />
+          <PeriodTabs
+            value={catPeriod}
+            onChange={setCatPeriod}
+            options={CATEGORY_PERIOD_OPTIONS}
+          />
         </div>
         <div className="p-5">
           {categoryData.length > 0 ? (

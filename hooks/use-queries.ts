@@ -39,6 +39,7 @@ import {
   ProductSalesPerformance,
   DashboardPeriod,
   DashboardSalesSummary,
+  DashboardTrendGranularity,
   DashboardCategoryRevenue,
   EMPTY_DASHBOARD_SALES_SUMMARY,
   EMPTY_DASHBOARD_CATEGORY_REVENUE,
@@ -2137,13 +2138,15 @@ export function useDeleteTask() {
 }
 
 // --- Dashboard ---
-export function useDashboardSalesSummary(period: DashboardPeriod = 'month') {
+export function useDashboardSalesSummary(
+  granularity: DashboardTrendGranularity = 'day',
+) {
   return useQuery({
-    queryKey: ['dashboardSalesSummary', period],
+    queryKey: ['dashboardSalesSummary', granularity],
     queryFn: async (): Promise<DashboardSalesSummary> => {
       if (!HAS_API) return EMPTY_DASHBOARD_SALES_SUMMARY;
       const res = await axiosGet(
-        `dashboard/sales-summary${buildQuery({ period })}`,
+        `dashboard/sales-summary${buildQuery({ granularity })}`,
         true,
       ) as ApiResponse<DashboardSalesSummary>;
       return res.data;

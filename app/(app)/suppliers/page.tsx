@@ -11,6 +11,7 @@ import {
   Supplier, SupplierIssue, SupplierBusinessType, SupplierIssueType,
   ProductCategory, PaymentTerms, StockMovementType,
 } from '@/types';
+import { PRODUCT_CATEGORIES } from '@/lib/product-categories';
 import { toast } from 'sonner';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -24,7 +25,6 @@ import {
   BarChart3, Activity, Flame, Repeat, Wallet,
 } from 'lucide-react';
 
-const ALL_CATEGORIES: ProductCategory[] = ['Fish', 'Chicken', 'Turkey', 'Beef & Exotic', 'Sausage', 'Palm Oil', 'Grains & Staples', 'Honey'];
 const BUSINESS_TYPES = Object.values(SupplierBusinessType);
 const PAYMENT_TERMS = Object.values(PaymentTerms);
 const ISSUE_TYPES = Object.values(SupplierIssueType);
@@ -515,7 +515,7 @@ export default function SuppliersPage() {
             <Tag size={14} className="text-muted-foreground" />
             <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="bg-transparent border-none text-sm font-medium focus:outline-none">
               <option value="All">All Categories</option>
-              {ALL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-background">
@@ -627,7 +627,7 @@ export default function SuppliersPage() {
             <div className="mt-4 space-y-2">
               <label className="text-sm font-medium">Products Supplied (Categories)</label>
               <div className="flex flex-wrap gap-2">
-                {ALL_CATEGORIES.map((c) => {
+                {PRODUCT_CATEGORIES.map((c) => {
                   const on = newSupplier.categories?.includes(c);
                   return (
                     <button key={c} type="button" onClick={() => setNewSupplier({ ...newSupplier, categories: toggleCategory(newSupplier.categories, c) })} className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium border transition-colors ${on ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground hover:bg-accent'}`}>
@@ -783,7 +783,7 @@ export default function SuppliersPage() {
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-muted-foreground">Products Supplied (Categories)</label>
                     <div className="flex flex-wrap gap-2">
-                      {ALL_CATEGORIES.map((c) => {
+                      {PRODUCT_CATEGORIES.map((c) => {
                         const on = editForm.categories?.includes(c);
                         return <button key={c} type="button" onClick={() => setEditForm({ ...editForm, categories: toggleCategory(editForm.categories, c) })} className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium border transition-colors ${on ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground hover:bg-accent'}`}>{on && <Check size={11} />} {c}</button>;
                       })}

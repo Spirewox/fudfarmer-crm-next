@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   useCreditSummary,
   useCreditMetrics,
@@ -17,6 +17,8 @@ import {
   Timer,
   ChevronRight,
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { PaginationControls } from '@/components/ui/pagination-controls';
 import { TableSkeleton } from '@/components/ui/loading-skeletons';
@@ -30,10 +32,31 @@ export default function CreditsPage() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortKey>('outstanding');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [selectedCustomer, setSelectedCustomer] = useState<CreditCustomerSummary | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, sortBy, sortDir, overdueOnly]);
+
+  const toggleSort = (field: 'overdue' | 'oldest') => {
+    if (sortBy === field) {
+      setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortBy(field);
+      setSortDir(field === 'oldest' ? 'asc' : 'desc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: 'overdue' | 'oldest' }) => {
+    if (sortBy !== field) return <ArrowUpDown size={12} className="text-muted-foreground/50" />;
+    return sortDir === 'asc'
+      ? <ArrowUp size={12} className="text-primary" />
+      : <ArrowDown size={12} className="text-primary" />;
+  };
 
   const filtered = useMemo(() => {
     let rows = summary.filter((row) => {
@@ -44,17 +67,23 @@ export default function CreditsPage() {
       return true;
     });
 
+    const dir = sortDir === 'asc' ? 1 : -1;
     rows = [...rows].sort((a, b) => {
-      if (sortBy === 'outstanding') return b.totalOutstanding - a.totalOutstanding;
-      if (sortBy === 'overdue') return b.overdueCount - a.overdueCount;
+      if (sortBy === 'outstanding') {
+        // Outstanding dropdown always prefers highest first; honor sortDir if flipped later
+        return (a.totalOutstanding - b.totalOutstanding) * (sortDir === 'asc' ? 1 : -1);
+      }
+      if (sortBy === 'overdue') {
+        return (a.overdueCount - b.overdueCount) * dir;
+      }
       if (!a.oldestDueDate && !b.oldestDueDate) return 0;
       if (!a.oldestDueDate) return 1;
       if (!b.oldestDueDate) return -1;
-      return a.oldestDueDate.localeCompare(b.oldestDueDate);
+      return a.oldestDueDate.localeCompare(b.oldestDueDate) * dir;
     });
 
     return rows;
-  }, [summary, searchTerm, sortBy, overdueOnly]);
+  }, [summary, searchTerm, sortBy, sortDir, overdueOnly]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -133,41 +162,32 @@ export default function CreditsPage() {
             type="text"
             placeholder="Search customer..."
             value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-9 text-sm"
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
-            onClick={() => {
-              setOverdueOnly(!overdueOnly);
-              setPage(1);
-            }}
+            onClick={() => setOverdueOnly(!overdueOnly)}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
               overdueOnly ? 'bg-red-600 text-white' : 'border hover:bg-accent'
             }`}
           >
             Overdue only
           </button>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <ArrowUpDown size={12} />
-            <select
-              value={sortBy}
-              onChange={(e) => {
-                setSortBy(e.target.value as SortKey);
-                setPage(1);
-              }}
-              className="h-8 rounded-md border border-input bg-background px-2 text-xs font-medium"
-            >
-              <option value="outstanding">Sort: Outstanding</option>
-              <option value="overdue">Sort: Overdue count</option>
-              <option value="oldest">Sort: Oldest due</option>
-            </select>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSortBy('outstanding');
+              setSortDir('desc');
+            }}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              sortBy === 'outstanding' ? 'bg-primary text-primary-foreground' : 'border hover:bg-accent'
+            }`}
+          >
+            Sort: Outstanding
+          </button>
         </div>
       </div>
 
@@ -180,8 +200,26 @@ export default function CreditsPage() {
                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground">Customer</th>
                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground text-right">Outstanding</th>
                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground text-center hidden sm:table-cell">Open</th>
-                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground text-center hidden sm:table-cell">Overdue</th>
-                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground hidden md:table-cell">Oldest due</th>
+                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground text-center hidden sm:table-cell">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('overdue')}
+                    className="inline-flex items-center gap-1 mx-auto hover:text-foreground"
+                  >
+                    Overdue
+                    <SortIcon field="overdue" />
+                  </button>
+                </th>
+                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground hidden md:table-cell">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('oldest')}
+                    className="inline-flex items-center gap-1 hover:text-foreground"
+                  >
+                    Oldest due
+                    <SortIcon field="oldest" />
+                  </button>
+                </th>
                 <th className="px-4 py-3 w-10" />
               </tr>
             </thead>

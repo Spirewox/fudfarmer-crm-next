@@ -518,6 +518,7 @@ export interface Supplier {
   paymentTerms?: PaymentTerms;
   leadTimeDays?: number;
   rating?: number;
+  totalSpend?: number;
   isActive: boolean;
   notes?: string;
   createdDate: string;

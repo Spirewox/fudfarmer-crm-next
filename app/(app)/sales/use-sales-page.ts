@@ -64,6 +64,8 @@ export function useSalesPage() {
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterChannel, setFilterChannel] = useState<string>('All');
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<'quantity' | 'amount' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const summaryFilters = useMemo(
     () => ({
@@ -95,8 +97,9 @@ export function useSalesPage() {
       ...summaryFilters,
       page,
       limit: SALES_PAGE_SIZE,
+      ...(sortBy ? { sort_by: sortBy, sort_dir: sortDir } : {}),
     }),
-    [summaryFilters, page],
+    [summaryFilters, page, sortBy, sortDir],
   );
 
   const { data: salesList, isLoading: salesLoading, isFetching: salesFetching } = useSales(listFilters);
@@ -126,7 +129,18 @@ export function useSalesPage() {
     filterAgent,
     filterStatus,
     filterChannel,
+    sortBy,
+    sortDir,
   ]);
+
+  const toggleSort = (field: 'quantity' | 'amount') => {
+    if (sortBy === field) {
+      setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortBy(field);
+      setSortDir('desc');
+    }
+  };
 
   const { data: stockLogs = [] } = useStockLogs();
   const { data: creditSummary = [] } = useCreditSummary();
@@ -876,6 +890,9 @@ export function useSalesPage() {
     setFilterStatus,
     filterChannel,
     setFilterChannel,
+    sortBy,
+    sortDir,
+    toggleSort,
     btnPrimary: BTN_PRIMARY,
     btnSecondary: BTN_SECONDARY,
     inputCls: INPUT_CLS,

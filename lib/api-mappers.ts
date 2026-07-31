@@ -319,6 +319,7 @@ export function mapSupplier(s: ApiSupplier, hubMap?: Record<string, string>): Su
     paymentTerms: s.payment_terms as Supplier['paymentTerms'],
     leadTimeDays: s.lead_time_days,
     rating: s.rating,
+    totalSpend: typeof s.total_spend === 'number' ? s.total_spend : undefined,
     isActive: s.is_active !== false,
     notes: s.notes,
     createdDate: toDateStr(s.createdAt) || new Date().toISOString().split('T')[0],

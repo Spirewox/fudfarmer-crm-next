@@ -6,6 +6,7 @@ import { SalesChannel, PaymentMode } from '@/types';
 import {
   Plus, Banknote, Search, TrendingUp, ChevronRight, CreditCard,
   ArrowUpRight, ArrowDownRight, Calendar, Upload, Download, ShoppingCart, Truck, BarChart3,
+  ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import {
   fmt, paymentModeBadgeClass, paymentModeLabel, resolveSalePaymentMode,
@@ -85,6 +86,7 @@ export default function SalesPage() {
     salesMeta, page, setPage, salesLoading, salesFetching, activeHubs,
     searchTerm, setSearchTerm, filterAgent, setFilterAgent, filterStatus, setFilterStatus,
     filterChannel, setFilterChannel,
+    sortBy, sortDir, toggleSort,
     selectedSale, setSelectedSale, detailTab, setDetailTab, isEditing, setIsEditing,
     editForm, setEditForm, showVoidConfirm, setShowVoidConfirm,
     saleStockLogs, customerSalesHistory, closeDetailPanel,
@@ -110,6 +112,13 @@ export default function SalesPage() {
     setSelectedSale(sale);
     setDetailTab('overview');
     setIsEditing(false);
+  };
+
+  const SortIcon = ({ field }: { field: 'quantity' | 'amount' }) => {
+    if (sortBy !== field) return <ArrowUpDown size={12} className="text-muted-foreground/50" />;
+    return sortDir === 'asc'
+      ? <ArrowUp size={12} className="text-primary" />
+      : <ArrowDown size={12} className="text-primary" />;
   };
 
   const closeImportModal = () => {
@@ -294,10 +303,28 @@ export default function SalesPage() {
                 <th className="h-12 px-4 text-left font-medium text-muted-foreground">Date Sold</th>
                 <th className="h-12 px-4 text-left font-medium text-muted-foreground">Customer</th>
                 <th className="h-12 px-4 text-left font-medium text-muted-foreground">Product Name</th>
-                <th className="h-12 px-4 text-center font-medium text-muted-foreground">Quantity</th>
+                <th className="h-12 px-4 text-center font-medium text-muted-foreground">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('quantity')}
+                    className="inline-flex items-center gap-1 mx-auto hover:text-foreground"
+                  >
+                    Quantity
+                    <SortIcon field="quantity" />
+                  </button>
+                </th>
                 <th className="h-12 px-4 text-left font-medium text-muted-foreground">Unit</th>
                 <th className="h-12 px-4 text-left font-medium text-muted-foreground">Category</th>
-                <th className="h-12 px-4 text-right font-medium text-muted-foreground">Amount</th>
+                <th className="h-12 px-4 text-right font-medium text-muted-foreground">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('amount')}
+                    className="inline-flex items-center gap-1 ml-auto hover:text-foreground"
+                  >
+                    Amount
+                    <SortIcon field="amount" />
+                  </button>
+                </th>
                 <th className="h-12 px-4 text-center font-medium text-muted-foreground">Payment</th>
                 <th className="h-12 px-4 w-8" />
               </tr>

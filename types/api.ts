@@ -324,6 +324,7 @@ export interface ApiSupplier {
   rating?: number;
   is_active?: boolean;
   notes?: string;
+  total_spend?: number;
   createdAt?: string;
   added_by?: string | { _id?: string; full_name?: string };
 }

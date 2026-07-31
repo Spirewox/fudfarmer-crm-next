@@ -28,6 +28,7 @@ import {
   ArrowUpRight, ArrowDownRight, X, Activity, Calendar, TrendingUp, TrendingDown,
   Edit3, Clock, ArrowRightLeft, Thermometer, Filter, ChevronDown, Download,
   Warehouse, ShieldAlert, Percent, Eye, Boxes, UtensilsCrossed,
+  ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
@@ -209,6 +210,8 @@ export default function InventoryPage() {
   const [filterLowStock, setFilterLowStock] = useState(false);
   const [filterCategory, setFilterCategory] = useState<ProductCategory | 'All'>('All');
   const [inventoryPage, setInventoryPage] = useState(1);
+  const [sortBy, setSortBy] = useState<'avgUnitCost' | 'value' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   // Selection / batch
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -280,14 +283,23 @@ export default function InventoryPage() {
 
   /* ──────── Computed data ──────── */
 
-  const filteredItems = useMemo(() => items.filter((i) => {
-    const matchesSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase()) || i.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLowStock = filterLowStock ? i.currentStock <= i.minStockLevel : true;
-    const matchesHub = hubScope.matchesHub(i.location);
-    const matchesCategory = filterCategory === 'All' || i.category === filterCategory;
-    const matchesActive = i.isActive !== false;
-    return matchesSearch && matchesLowStock && matchesHub && matchesCategory && matchesActive;
-  }), [items, searchTerm, filterLowStock, hubScope, filterCategory]);
+  const filteredItems = useMemo(() => {
+    const rows = items.filter((i) => {
+      const matchesSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase()) || i.sku.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesLowStock = filterLowStock ? i.currentStock <= i.minStockLevel : true;
+      const matchesHub = hubScope.matchesHub(i.location);
+      const matchesCategory = filterCategory === 'All' || i.category === filterCategory;
+      const matchesActive = i.isActive !== false;
+      return matchesSearch && matchesLowStock && matchesHub && matchesCategory && matchesActive;
+    });
+    if (!sortBy) return rows;
+    const dir = sortDir === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      const aVal = sortBy === 'avgUnitCost' ? a.avgUnitCost : a.currentStock * a.avgUnitCost;
+      const bVal = sortBy === 'avgUnitCost' ? b.avgUnitCost : b.currentStock * b.avgUnitCost;
+      return (aVal - bVal) * dir;
+    });
+  }, [items, searchTerm, filterLowStock, hubScope, filterCategory, sortBy, sortDir]);
 
   const inventoryTotalPages = Math.max(
     1,
@@ -301,7 +313,23 @@ export default function InventoryPage() {
 
   useEffect(() => {
     setInventoryPage(1);
-  }, [searchTerm, filterLowStock, filterCategory, hubScope.filterHub]);
+  }, [searchTerm, filterLowStock, filterCategory, hubScope.filterHub, sortBy, sortDir]);
+
+  const toggleSort = (field: 'avgUnitCost' | 'value') => {
+    if (sortBy === field) {
+      setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortBy(field);
+      setSortDir('desc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: 'avgUnitCost' | 'value' }) => {
+    if (sortBy !== field) return <ArrowUpDown size={12} className="text-muted-foreground/50" />;
+    return sortDir === 'asc'
+      ? <ArrowUp size={12} className="text-primary" />
+      : <ArrowDown size={12} className="text-primary" />;
+  };
 
   const inventoryValue = useMemo(() => filteredItems.reduce((acc, curr) => acc + curr.currentStock * curr.avgUnitCost, 0), [filteredItems]);
   const retailValue = useMemo(() => filteredItems.reduce((acc, curr) => acc + curr.currentStock * curr.baseSellingPrice, 0), [filteredItems]);
@@ -1063,8 +1091,26 @@ export default function InventoryPage() {
                     {hubScope.filterHub === 'All' && <th className="h-12 px-4 text-left font-medium text-muted-foreground">Hub</th>}
                     <th className="h-12 px-4 text-center font-medium text-muted-foreground">Status</th>
                     <th className="h-12 px-4 text-center font-medium text-muted-foreground">Stock</th>
-                    <th className="h-12 px-4 text-right font-medium text-muted-foreground">Cost / Price</th>
-                    <th className="h-12 px-4 text-right font-medium text-muted-foreground">Value</th>
+                    <th className="h-12 px-4 text-right font-medium text-muted-foreground">
+                      <button
+                        type="button"
+                        onClick={() => toggleSort('avgUnitCost')}
+                        className="inline-flex items-center gap-1 ml-auto hover:text-foreground"
+                      >
+                        Cost / Price
+                        <SortIcon field="avgUnitCost" />
+                      </button>
+                    </th>
+                    <th className="h-12 px-4 text-right font-medium text-muted-foreground">
+                      <button
+                        type="button"
+                        onClick={() => toggleSort('value')}
+                        className="inline-flex items-center gap-1 ml-auto hover:text-foreground"
+                      >
+                        Value
+                        <SortIcon field="value" />
+                      </button>
+                    </th>
                     <th className="h-12 px-4 text-right font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>

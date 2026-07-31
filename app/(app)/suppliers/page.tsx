@@ -22,7 +22,7 @@ import {
   Star, ShoppingCart, ClipboardList, Boxes, TrendingDown, TrendingUp,
   CircleDollarSign, Clock, ShieldCheck, Ban, CheckCircle2, Tag,
   ChevronDown, Package2, CalendarClock, Percent, FileText,
-  BarChart3, Activity, Flame, Repeat, Wallet,
+  BarChart3, Activity, Flame, Repeat, Wallet, ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 
 const BUSINESS_TYPES = Object.values(SupplierBusinessType);
@@ -99,7 +99,13 @@ const severityBadge = (s: SupplierIssue['severity']) => {
 
 export default function SuppliersPage() {
   const { can } = usePermissions();
-  const { data: supplierList } = useSuppliers({ limit: 200 });
+  const [sortBy, setSortBy] = useState<'rating' | 'total_spend' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const { data: supplierList } = useSuppliers({
+    limit: 200,
+    sort_by: sortBy ?? undefined,
+    sort_dir: sortBy ? sortDir : undefined,
+  });
   const suppliers = supplierList?.items ?? [];
   const { data: purchaseStockLogs = [] } = useStockLogs({ type: 'PURCHASE' });
   const { data: stockLogs = [] } = useStockLogs();
@@ -133,7 +139,7 @@ export default function SuppliersPage() {
   const supplierPurchases = purchaseData?.items ?? [];
   const { data: supplierIssueList = [] } = useSupplierIssues(selectedSupplier?.id ?? null);
 
-  const agentName = (id?: string) => agents.find((a) => a.id === id)?.name || id || 'ΓÇö';
+  const agentName = (id?: string) => agents.find((a) => a.id === id)?.name || id || '—';
 
   const emptySupplier = (): Partial<Supplier> => ({
     name: '', businessName: '', businessType: SupplierBusinessType.DISTRIBUTOR,
@@ -147,6 +153,22 @@ export default function SuppliersPage() {
     navigator.clipboard.writeText(text);
     setCopiedField(field);
     setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const toggleSort = (field: 'rating' | 'total_spend') => {
+    if (sortBy === field) {
+      setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortBy(field);
+      setSortDir('desc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: 'rating' | 'total_spend' }) => {
+    if (sortBy !== field) return <ArrowUpDown size={12} className="text-muted-foreground/50" />;
+    return sortDir === 'asc'
+      ? <ArrowUp size={12} className="text-primary" />
+      : <ArrowDown size={12} className="text-primary" />;
   };
 
   // --- Purchase spend per supplier (from stock logs) ---
@@ -540,15 +562,33 @@ export default function SuppliersPage() {
                 <th className="h-12 px-4 text-left font-medium text-muted-foreground">Contact</th>
                 <th className="h-12 px-4 text-left font-medium text-muted-foreground">Type / Location</th>
                 <th className="h-12 px-4 text-left font-medium text-muted-foreground">Supplies</th>
-                <th className="h-12 px-4 text-right font-medium text-muted-foreground">Spend</th>
-                <th className="h-12 px-4 text-center font-medium text-muted-foreground">Rating</th>
+                <th className="h-12 px-4 text-right font-medium text-muted-foreground">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('total_spend')}
+                    className="inline-flex items-center gap-1 ml-auto hover:text-foreground"
+                  >
+                    Spend
+                    <SortIcon field="total_spend" />
+                  </button>
+                </th>
+                <th className="h-12 px-4 text-center font-medium text-muted-foreground">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('rating')}
+                    className="inline-flex items-center gap-1 mx-auto hover:text-foreground"
+                  >
+                    Rating
+                    <SortIcon field="rating" />
+                  </button>
+                </th>
                 <th className="h-12 px-4 text-center font-medium text-muted-foreground">Issues</th>
                 <th className="h-12 px-4 text-left font-medium text-muted-foreground w-8"></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((s) => {
-                const spend = spendBySupplier[s.id]?.spend || 0;
+                const spend = typeof s.totalSpend === 'number' ? s.totalSpend : (spendBySupplier[s.id]?.spend || 0);
                 const open = openIssuesBySupplier[s.id] || 0;
                 return (
                   <tr key={s.id} onClick={() => handleViewDetails(s)} className={`border-b hover:bg-muted/50 cursor-pointer group ${!s.isActive ? 'opacity-60' : ''}`}>

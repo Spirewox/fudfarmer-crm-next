@@ -964,6 +964,8 @@ type SalesQueryFilters = {
   exclude_voided?: boolean;
   page?: number;
   limit?: number;
+  sort_by?: 'quantity' | 'amount';
+  sort_dir?: 'asc' | 'desc';
 };
 
 export function useSales(
@@ -991,6 +993,8 @@ export function useSales(
         exclude_voided: filters?.exclude_voided,
         page: filters?.page,
         limit: filters?.limit,
+        sort_by: filters?.sort_by,
+        sort_dir: filters?.sort_dir,
       };
       const raw = await axiosGet(`sales${buildQuery(params)}`, true);
       return parseSalesListResponse(raw, hubMap);
@@ -1455,6 +1459,8 @@ export function useSuppliers(filters?: {
   is_active?: boolean;
   page?: number;
   limit?: number;
+  sort_by?: 'rating' | 'total_spend';
+  sort_dir?: 'asc' | 'desc';
 }) {
   return useQuery({
     queryKey: ['suppliers', filters],

@@ -227,6 +227,7 @@ export default function InventoryPage() {
   const [importPreview, setImportPreview] = useState<InventoryImportPreviewRow[]>([]);
   const [importSummary, setImportSummary] = useState<{ total: number; valid: number; invalid: number } | null>(null);
   const [importingMovements, setImportingMovements] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   // Detail panel
   const [viewingDetailsItem, setViewingDetailsItem] = useState<InventoryItem | null>(null);
@@ -673,6 +674,7 @@ export default function InventoryPage() {
     setShowImportModal(true);
     setImportPreview([]);
     setImportSummary(null);
+    setImportError(null);
     validateInventoryImport.mutate(file, {
       onSuccess: (data) => {
         setImportPreview(data.rows);
@@ -696,21 +698,21 @@ export default function InventoryPage() {
       return;
     }
     setImportingMovements(true);
+    setImportError(null);
     importInventory.mutate(rows, {
       onSuccess: (result) => {
         setImportingMovements(false);
         setShowImportModal(false);
         setImportPreview([]);
         setImportSummary(null);
-        if (result.failed > 0) {
-          toast.warning(`Imported ${result.imported} movements. ${result.failed} failed.`);
-        } else {
-          toast.success(`Imported ${result.imported} movements.`);
-        }
+        setImportError(null);
+        toast.success(`Imported ${result.imported} movements.`);
       },
       onError: (err) => {
         setImportingMovements(false);
-        toast.error(err.message || 'Import failed.');
+        const message = err.message || 'Import failed.';
+        setImportError(message);
+        toast.error(message);
       },
     });
   };
@@ -719,6 +721,7 @@ export default function InventoryPage() {
     setShowImportModal(false);
     setImportPreview([]);
     setImportSummary(null);
+    setImportError(null);
   };
 
   /* ──────── Shared input class ──────── */
@@ -2322,6 +2325,7 @@ export default function InventoryPage() {
         summary={importSummary}
         importing={importingMovements}
         validating={validateInventoryImport.isPending}
+        importError={importError}
         onConfirm={handleInventoryImportConfirm}
         onDownloadTemplate={handleDownloadInventoryTemplate}
       />

@@ -199,6 +199,7 @@ export function useSalesPage() {
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<{ processed: number; total: number; imported: number; failed: number } | null>(null);
   const [importResult, setImportResult] = useState<SalesImportChunkResult | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
 
   useEffect(() => {
@@ -691,6 +692,7 @@ export function useSalesPage() {
     setValidateAuditId(null);
     setImportProgress(null);
     setImportResult(null);
+    setImportError(null);
     setShowImportConfirm(false);
     validateImport.mutate(file, {
       onSuccess: (data) => {
@@ -727,6 +729,7 @@ export function useSalesPage() {
     setImporting(true);
     setImportProgress({ processed: 0, total: validCount, imported: 0, failed: 0 });
     setImportResult(null);
+    setImportError(null);
     try {
       const result = await runChunkedSalesImport(validateAuditId, validCount, (progress) => {
         setImportProgress(progress);
@@ -737,24 +740,19 @@ export function useSalesPage() {
       await queryClient.invalidateQueries({ queryKey: ['sales'] });
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       await queryClient.invalidateQueries({ queryKey: ['dashboardMetrics'] });
-      if (result.failed_so_far > 0) {
-        toast.warning(`Imported ${result.imported_so_far} of ${result.total} sales. ${result.failed_so_far} failed.`);
-      } else if (result.imported_so_far < result.total) {
-        toast.warning(`Imported ${result.imported_so_far} of ${result.total} sales.`);
-      } else {
-        toast.success(`Imported ${result.imported_so_far} sales.`);
-      }
-      if (result.failed_so_far === 0 && result.imported_so_far === result.total) {
-        setShowImportModal(false);
-        setImportPreview([]);
-        setImportSummary(null);
-        setValidateAuditId(null);
-        setImportProgress(null);
-        setImportResult(null);
-      }
+      toast.success(`Imported ${result.imported_so_far ?? result.imported} sales.`);
+      setShowImportModal(false);
+      setImportPreview([]);
+      setImportSummary(null);
+      setValidateAuditId(null);
+      setImportProgress(null);
+      setImportResult(null);
     } catch (err) {
       setImporting(false);
-      toast.error(err instanceof Error ? err.message : 'Import failed.');
+      setShowImportConfirm(false);
+      const message = err instanceof Error ? err.message : 'Import failed.';
+      setImportError(message);
+      toast.error(message);
     }
   };
 
@@ -873,6 +871,7 @@ export function useSalesPage() {
     importing,
     importProgress,
     importResult,
+    importError,
     showImportConfirm,
     setShowImportConfirm,
     validating: validateImport.isPending,

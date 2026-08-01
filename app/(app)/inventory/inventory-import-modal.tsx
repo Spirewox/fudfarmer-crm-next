@@ -13,6 +13,7 @@ export interface InventoryImportModalProps {
   summary: { total: number; valid: number; invalid: number } | null;
   importing: boolean;
   validating: boolean;
+  importError: string | null;
   onConfirm: () => void;
   onDownloadTemplate: () => void;
 }
@@ -24,6 +25,7 @@ export function InventoryImportModal({
   summary,
   importing,
   validating,
+  importError,
   onConfirm,
   onDownloadTemplate,
 }: Readonly<InventoryImportModalProps>) {
@@ -44,7 +46,7 @@ export function InventoryImportModal({
     : `Import ${validRows.length} ${movementLabel}`;
 
   return (
-    <ModalDialog onClose={onClose}>
+    <ModalDialog onClose={importing ? () => {} : onClose}>
       <div className="relative z-10 w-full max-w-4xl rounded-md border bg-card p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <div>
@@ -53,7 +55,7 @@ export function InventoryImportModal({
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
           </div>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <button type="button" onClick={onClose} disabled={importing} className="text-muted-foreground hover:text-foreground disabled:opacity-50">
             <X size={20} />
           </button>
         </div>
@@ -73,10 +75,23 @@ export function InventoryImportModal({
           </div>
         )}
 
+        {importError && (
+          <div className="mb-4 p-3 rounded-md border border-red-300 bg-red-50 text-sm">
+            <p className="font-medium text-red-800 mb-1 flex items-center gap-1.5">
+              <AlertCircle size={14} /> Import rolled back
+            </p>
+            <p className="text-red-700">{importError}</p>
+            <p className="text-xs text-red-600/80 mt-2">
+              No movements from this file were saved. Fix the issue and try again.
+            </p>
+          </div>
+        )}
+
         <div className="mb-4 p-3 rounded-md border bg-muted/20 text-xs text-muted-foreground">
           <p className="font-medium text-foreground mb-1">Movement import rules:</p>
           <p><strong>Live (today+):</strong> catalog product + quantity required; updates current stock.</p>
           <p><strong>Historical:</strong> backdated rows log only — current stock is not changed.</p>
+          <p className="mt-1">Import is all-or-nothing: if any row fails, nothing from this file is saved.</p>
         </div>
 
         {validating && previewRows.length === 0 && (

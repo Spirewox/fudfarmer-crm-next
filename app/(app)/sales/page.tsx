@@ -100,7 +100,7 @@ export default function SalesPage() {
     handleProductChange, handleQuantityChange, handleSaleUnitChange, handleSaveSale,
     savingSale, savingEdit, voidingSale, updatingDelivery,
     showImportModal, setShowImportModal, importPreview, setImportPreview, importSummary, setImportSummary,
-    validateAuditId, importing, importProgress, importResult, showImportConfirm, setShowImportConfirm,
+    validateAuditId, importing, importProgress, importResult, importError, showImportConfirm, setShowImportConfirm,
     validating, handleDownloadTemplate, handleImportFile, handleImportConfirm, importInputRef,
     downloadingTemplate, handleExport,
     btnPrimary, btnSecondary,
@@ -446,6 +446,7 @@ export default function SalesPage() {
         showImportConfirm={showImportConfirm}
         importProgress={importProgress}
         importResult={importResult}
+        importError={importError}
         onConfirm={handleImportConfirm}
         onCancelConfirm={() => setShowImportConfirm(false)}
         onDownloadTemplate={handleDownloadTemplate}

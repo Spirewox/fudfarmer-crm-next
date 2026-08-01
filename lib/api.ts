@@ -24,9 +24,13 @@ export const axiosPost = async (
   endpoint: string,
   data?: object,
   withAuth?: boolean,
+  timeoutMs?: number,
 ) => {
   try {
-    const res = await axios.post(`${base_url}${endpoint}`, data, authConfig(withAuth));
+    const res = await axios.post(`${base_url}${endpoint}`, data, {
+      ...authConfig(withAuth),
+      ...(timeoutMs != null ? { timeout: timeoutMs } : {}),
+    });
     return res.data;
   } catch (error) {
     if (isAxiosError(error)) {

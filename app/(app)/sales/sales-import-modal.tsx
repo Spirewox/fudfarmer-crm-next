@@ -16,6 +16,7 @@ export interface SalesImportModalProps {
   showImportConfirm: boolean;
   importProgress: { processed: number; total: number; imported: number; failed: number } | null;
   importResult: SalesImportChunkResult | null;
+  importError: string | null;
   onConfirm: () => void;
   onCancelConfirm: () => void;
   onDownloadTemplate: (type?: 'catalog' | 'custom') => void;
@@ -31,6 +32,7 @@ export function SalesImportModal({
   showImportConfirm,
   importProgress,
   importResult,
+  importError,
   onConfirm,
   onCancelConfirm,
   onDownloadTemplate,
@@ -49,17 +51,12 @@ export function SalesImportModal({
   }
 
   const saleLabel = validRows.length === 1 ? 'Sale' : 'Sales';
-  const progressPct = importProgress && importProgress.total > 0
-    ? Math.min(100, Math.round((importProgress.processed / importProgress.total) * 100))
-    : 0;
-
-  const failedResults = (importResult?.results ?? []).filter((r) => !r.success);
 
   let importButtonLabel = `Import ${validRows.length} ${saleLabel}`;
   if (showImportConfirm && !importing) {
     importButtonLabel = `Yes, import ${validRows.length} ${saleLabel}`;
   } else if (importing) {
-    importButtonLabel = `Importing ${importProgress?.processed ?? 0} / ${importProgress?.total ?? validRows.length}…`;
+    importButtonLabel = 'Importing…';
   }
 
   return (
@@ -88,46 +85,40 @@ export function SalesImportModal({
               Import {validRows.length} sale{validRows.length === 1 ? '' : 's'} from this file?
             </p>
             <p className="text-muted-foreground mt-1">
-              Large files are imported in batches of 50 so no rows are skipped. This may take a few minutes.
+              Import is all-or-nothing: if any row fails, nothing from this file is saved.
             </p>
           </div>
         )}
 
-        {importing && importProgress && (
-          <div className="mb-4 p-4 rounded-md border bg-muted/20">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="font-medium">Importing sales…</span>
-              <span className="text-muted-foreground">
-                {importProgress.processed} / {importProgress.total}
-              </span>
+        {importing && (
+          <div className="mb-4 p-4 rounded-md border bg-muted/20 flex items-center gap-3 text-sm">
+            <Loader2 size={16} className="animate-spin text-primary shrink-0" />
+            <div>
+              <p className="font-medium">Importing sales…</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {importProgress?.total ?? validRows.length} rows — please wait
+              </p>
             </div>
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              {importProgress.imported} imported, {importProgress.failed} failed so far
+          </div>
+        )}
+
+        {importError && (
+          <div className="mb-4 p-3 rounded-md border border-red-300 bg-red-50 text-sm">
+            <p className="font-medium text-red-800 mb-1 flex items-center gap-1.5">
+              <AlertCircle size={14} /> Import rolled back
+            </p>
+            <p className="text-red-700">{importError}</p>
+            <p className="text-xs text-red-600/80 mt-2">
+              No sales from this file were saved. Fix the issue and try again.
             </p>
           </div>
         )}
 
-        {importResult && failedResults.length > 0 && (
+        {importResult && (importResult.failed_so_far ?? importResult.failed) > 0 && (
           <div className="mb-4 p-3 rounded-md border border-orange-300 bg-orange-50 text-sm">
             <p className="font-medium text-orange-800 mb-2">
-              {importResult.failed_so_far} row(s) failed to import
+              {(importResult.failed_so_far ?? importResult.failed)} row(s) failed to import
             </p>
-            <div className="max-h-32 overflow-y-auto space-y-1 text-xs text-orange-800">
-              {failedResults.slice(0, 20).map((r) => (
-                <p key={`fail-${r.lineNo}`}>
-                  Row {r.lineNo}: {r.error ?? 'Unknown error'}
-                </p>
-              ))}
-              {failedResults.length > 20 && (
-                <p className="italic">…and {failedResults.length - 20} more</p>
-              )}
-            </div>
           </div>
         )}
 

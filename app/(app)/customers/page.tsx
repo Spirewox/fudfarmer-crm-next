@@ -259,6 +259,7 @@ export default function CustomersPage() {
   const [showCustomerImportModal, setShowCustomerImportModal] = useState(false);
   const [customerImportFileName, setCustomerImportFileName] = useState('');
   const [customerImporting, setCustomerImporting] = useState(false);
+  const [customerImportError, setCustomerImportError] = useState<string | null>(null);
   const [customerImportSummary, setCustomerImportSummary] = useState<{
     fileName: string;
     total: number;
@@ -585,6 +586,7 @@ export default function CustomersPage() {
     setCustomerImportSummary(null);
     setCustomerImportPreview([]);
     setCustomerImportValidateSummary(null);
+    setCustomerImportError(null);
     setCustomerImportFileName(file.name);
     setShowCustomerImportModal(true);
     validateCustomerImport.mutate(file, {
@@ -616,9 +618,9 @@ export default function CustomersPage() {
       return;
     }
     setCustomerImporting(true);
+    setCustomerImportError(null);
     try {
       const result = await importCustomers.mutateAsync(rows);
-      const importFailed = result.failed ?? 0;
       const imported = result.imported ?? 0;
       const warnings = customerImportValidateSummary?.warnings ?? 0;
       const invalid = customerImportValidateSummary?.invalid ?? 0;
@@ -626,21 +628,24 @@ export default function CustomersPage() {
       setShowCustomerImportModal(false);
       setCustomerImportPreview([]);
       setCustomerImportValidateSummary(null);
+      setCustomerImportError(null);
       setCustomerImportSummary({
         fileName: customerImportFileName,
         total,
         imported,
         warnings,
         invalid,
-        failed: importFailed,
+        failed: 0,
         rows: buildCustomerImportSummaryRows(previewSnapshot, result.results),
       });
-      if (warnings > 0 || invalid > 0 || importFailed > 0) {
-        toast.warning(`${warnings} row(s) had warnings, ${invalid} invalid, ${importFailed} failed.`);
+      if (warnings > 0 || invalid > 0) {
+        toast.warning(`${warnings} row(s) had warnings, ${invalid} invalid (skipped).`);
       }
       toast.success(`Imported ${imported} customer(s).`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Customer import failed.');
+      const message = err instanceof Error ? err.message : 'Customer import failed.';
+      setCustomerImportError(message);
+      toast.error(message);
     } finally {
       setCustomerImporting(false);
     }
@@ -651,6 +656,7 @@ export default function CustomersPage() {
     setShowCustomerImportModal(false);
     setCustomerImportPreview([]);
     setCustomerImportValidateSummary(null);
+    setCustomerImportError(null);
   };
 
   // --- Render ---
@@ -998,6 +1004,7 @@ export default function CustomersPage() {
         summary={customerImportValidateSummary}
         importing={customerImporting}
         validating={validateCustomerImport.isPending}
+        importError={customerImportError}
         onConfirm={handleCustomerImportConfirm}
         onDownloadTemplate={() => downloadCustomerImportTemplate.mutate()}
       />

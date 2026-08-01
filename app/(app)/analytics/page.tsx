@@ -79,7 +79,7 @@ export default function AnalyticsPage() {
   const router = useRouter();
   const [tab, setTab] = useState<AnalyticsTab>('sales');
   const hubScope = useHubScopeFilter();
-  const metricsPeriod = useMetricsPeriod('month');
+  const metricsPeriod = useMetricsPeriod('all');
   const { data: overview, isLoading } = useAnalyticsOverview({
     hub_id: hubScope.hubIdForApi,
     ...metricsPeriod.apiParams,

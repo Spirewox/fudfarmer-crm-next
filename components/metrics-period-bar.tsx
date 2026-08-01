@@ -44,7 +44,7 @@ export function getMetricsDateRange(preset: MetricsPeriodPreset): { from: string
 }
 
 export function useMetricsPeriod(
-  defaultPreset: MetricsPeriodPreset = 'month',
+  defaultPreset: MetricsPeriodPreset = 'all',
 ): MetricsPeriodState {
   const [preset, setPresetState] = useState<MetricsPeriodPreset>(defaultPreset);
   const [dateFrom, setDateFromState] = useState('');

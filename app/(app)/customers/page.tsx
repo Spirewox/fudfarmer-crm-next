@@ -168,7 +168,7 @@ export default function CustomersPage() {
   const { user } = useAuth();
   const { can } = usePermissions();
   const hubScope = useHubScopeFilter();
-  const metricsPeriod = useMetricsPeriod('month');
+  const metricsPeriod = useMetricsPeriod('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<CustomerType | 'All'>('All');

@@ -2165,7 +2165,7 @@ export function useDashboardSalesSummary(
   });
 }
 
-export function useDashboardRevenueByCategory(period: DashboardPeriod = 'month') {
+export function useDashboardRevenueByCategory(period: DashboardPeriod = 'all') {
   return useQuery({
     queryKey: ['dashboardRevenueByCategory', period],
     queryFn: async (): Promise<DashboardCategoryRevenue> => {

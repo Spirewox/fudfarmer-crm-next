@@ -99,8 +99,8 @@ function formatTrendLabel(
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [salesGranularity, setSalesGranularity] = useState<DashboardTrendGranularity>('day');
-  const [catPeriod, setCatPeriod] = useState<DashboardPeriod>('month');
+  const [salesGranularity, setSalesGranularity] = useState<DashboardTrendGranularity>('all');
+  const [catPeriod, setCatPeriod] = useState<DashboardPeriod>('all');
   const [custFilter, setCustFilter] = useState<'all' | 'B2B' | 'B2C'>('all');
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 

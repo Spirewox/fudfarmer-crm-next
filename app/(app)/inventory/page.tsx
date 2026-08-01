@@ -172,7 +172,7 @@ export default function InventoryPage() {
   const router = useRouter();
   const { can, isAdmin } = usePermissions();
   const hubScope = useHubScopeFilter();
-  const metricsPeriod = useMetricsPeriod('month');
+  const metricsPeriod = useMetricsPeriod('all');
   const importInputRef = useRef<HTMLInputElement>(null);
   const downloadInventoryTemplate = useDownloadInventoryImportTemplate();
   const validateInventoryImport = useValidateInventoryImport();

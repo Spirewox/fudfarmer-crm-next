@@ -694,7 +694,7 @@ export default function CustomersPage() {
       <div className="space-y-3">
         <MetricsPeriodBar
           period={metricsPeriod}
-          hint="Filters the customer list and KPIs by record creation date (createdAt)."
+          hint="Filters the customer list and KPIs to customers who transacted in the selected range."
         />
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
         <div className="rounded-xl border bg-card p-4 shadow-sm">
@@ -702,7 +702,7 @@ export default function CustomersPage() {
           <MetricValue value={kpis.total} />
         </div>
         <div className="rounded-xl border bg-card p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-1"><Calendar size={14} className="text-sky-600" /><span className="text-[10px] font-bold uppercase text-muted-foreground">{periodScoped ? 'Created in Period' : 'YTD Created'}</span></div>
+          <div className="flex items-center gap-2 mb-1"><Calendar size={14} className="text-sky-600" /><span className="text-[10px] font-bold uppercase text-muted-foreground">{periodScoped ? 'Active in Period' : 'YTD Created'}</span></div>
           <MetricValue value={kpis.ytdCustomers} />
         </div>
         <div className="rounded-xl border bg-card p-4 shadow-sm">

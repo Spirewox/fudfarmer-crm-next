@@ -2150,7 +2150,7 @@ export function useDeleteTask() {
 
 // --- Dashboard ---
 export function useDashboardSalesSummary(
-  granularity: DashboardTrendGranularity = 'day',
+  granularity: DashboardTrendGranularity = 'all',
 ) {
   return useQuery({
     queryKey: ['dashboardSalesSummary', granularity],

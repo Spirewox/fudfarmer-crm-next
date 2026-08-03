@@ -46,27 +46,19 @@ export function getMetricsDateRange(preset: MetricsPeriodPreset): { from: string
 export function useMetricsPeriod(
   defaultPreset: MetricsPeriodPreset = 'all',
 ): MetricsPeriodState {
-  const [preset, setPresetState] = useState<MetricsPeriodPreset>(defaultPreset);
-  const [dateFrom, setDateFromState] = useState('');
-  const [dateTo, setDateToState] = useState('');
+  const [preset, setPreset] = useState<MetricsPeriodPreset>(defaultPreset);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
-  const setPreset = useCallback((p: MetricsPeriodPreset) => {
-    setPresetState(p);
-    setDateFromState('');
-    setDateToState('');
-  }, []);
-
-  const setDateFrom = useCallback((v: string) => {
-    setDateFromState(v);
-  }, []);
-
-  const setDateTo = useCallback((v: string) => {
-    setDateToState(v);
+  const selectPreset = useCallback((p: MetricsPeriodPreset) => {
+    setPreset(p);
+    setDateFrom('');
+    setDateTo('');
   }, []);
 
   const clearCustomRange = useCallback(() => {
-    setDateFromState('');
-    setDateToState('');
+    setDateFrom('');
+    setDateTo('');
   }, []);
 
   const rangeError = useMemo(() => {
@@ -96,7 +88,7 @@ export function useMetricsPeriod(
     isCustom,
     rangeError,
     apiParams,
-    setPreset,
+    setPreset: selectPreset,
     setDateFrom,
     setDateTo,
     clearCustomRange,
@@ -116,7 +108,11 @@ type MetricsPeriodBarProps = {
   hint?: string;
 };
 
-export function MetricsPeriodBar({ period, className = '', hint }: MetricsPeriodBarProps) {
+export function MetricsPeriodBar({
+  period,
+  className = '',
+  hint,
+}: Readonly<MetricsPeriodBarProps>) {
   const activeLabel = period.isCustom
     ? `${period.dateFrom} → ${period.dateTo}`
     : PRESETS.find((p) => p.key === period.preset)?.label ?? period.preset;

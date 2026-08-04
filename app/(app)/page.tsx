@@ -35,6 +35,7 @@ const CAT_COLORS = PRODUCT_CATEGORY_COLORS;
 const CREDIT_COLORS = ['#f59e0b', '#ef4444', '#16a34a'];
 
 const SALES_GRANULARITY_OPTIONS: { value: DashboardTrendGranularity; label: string; caption: string }[] = [
+  { value: 'day', label: 'Daily', caption: 'Today' },
   { value: 'week', label: 'Weekly', caption: 'Last 8 days' },
   { value: 'month', label: 'Monthly', caption: 'Last 30 days' },
   { value: 'all', label: 'All', caption: 'All time (by month)' },

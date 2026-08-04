@@ -101,7 +101,7 @@ export default function AnalyticsPage() {
         <p className="text-sm text-muted-foreground">Deeper insights into FudFarmer operations</p>
       </div>
 
-      <div className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
+      <div className="space-y-4 rounded-xl border bg-card p-4">
         <div className="space-y-2">
           <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
             Location
@@ -120,7 +120,7 @@ export default function AnalyticsPage() {
       </div>
 
       {!HAS_API ? (
-        <div className="rounded-xl border bg-card p-8 shadow-sm text-center">
+        <div className="rounded-xl border bg-card p-8 text-center">
           <BarChart3 size={32} className="mx-auto text-muted-foreground mb-2" />
           <p className="text-sm text-muted-foreground">Connect to the API to view analytics.</p>
         </div>
@@ -209,7 +209,7 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
   return (
     <div className="space-y-5">
       {growth && (
-        <div className="rounded-xl border bg-gradient-to-br from-cyan-50 to-card p-5 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="rounded-xl border bg-gradient-to-br from-cyan-50 to-card p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
               Revenue Growth Rate (MoM %)
@@ -245,14 +245,14 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {growth && (
           <>
-            <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <div className="rounded-xl border bg-card p-4">
               <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Revenue Growth Rate MoM</p>
               <div className="flex items-end gap-2">
                 <GrowthBadge value={growth.revGrowth} />
                 <span className="text-[10px] text-muted-foreground">vs {growth.prevMonth}</span>
               </div>
             </div>
-            <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <div className="rounded-xl border bg-card p-4">
               <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Order Growth</p>
               <div className="flex items-end gap-2">
                 <GrowthBadge value={growth.orderGrowth} />
@@ -261,21 +261,21 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
             </div>
           </>
         )}
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Total Revenue</p>
           <p className="text-xl font-black text-emerald-600">{fmtK(totalRevenue)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Collected</p>
           <p className="text-xl font-black text-emerald-600">{fmtK(collectedVsOutstanding.collected)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Outstanding</p>
           <p className={`text-xl font-black ${collectedVsOutstanding.outstanding > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>{fmtK(collectedVsOutstanding.outstanding)}</p>
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card shadow-sm">
+      <div className="rounded-xl border bg-card">
         <CardHead
           title={
             <span className="inline-flex items-center gap-2">
@@ -347,7 +347,7 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <CardHead
             title="Sales by Day of Week"
             subtitle={dowMetric === 'avg' ? 'Average revenue per day' : dowMetric === 'total' ? 'Total revenue by day' : 'Order count by day'}
@@ -384,7 +384,7 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <CardHead
             title="Average Order Value Trend"
             subtitle={`Average ticket size per ${aovGrain}`}
@@ -418,7 +418,7 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <CardHead
             title="Sales Channel Mix"
             subtitle={chanMetric === 'revenue' ? 'Revenue by channel' : 'Orders by channel'}
@@ -490,7 +490,7 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <CardHead
             title="Payment Mode"
             subtitle="Full payment vs credit vs partial credit"
@@ -562,7 +562,7 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card shadow-sm">
+      <div className="rounded-xl border bg-card">
         <CardHead
           title="Payment Type"
           subtitle="How customers pay — Cash, Transfer, or POS (excludes full credit sales)"
@@ -659,7 +659,7 @@ function ProductPerformance({ data }: { data: AnalyticsOverviewData['products'] 
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border bg-card shadow-sm">
+      <div className="rounded-xl border bg-card">
         <CardHead
           title={`Top Products by ${prodSort === 'revenue' ? 'Revenue' : 'Orders'}`}
           subtitle="Best selling products in the selected range"
@@ -717,7 +717,7 @@ function ProductPerformance({ data }: { data: AnalyticsOverviewData['products'] 
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <CardHead
             title={`${catMetric === 'revenue' ? 'Revenue' : 'Orders'} by Category`}
             subtitle="Comparison across product categories"
@@ -764,7 +764,7 @@ function ProductPerformance({ data }: { data: AnalyticsOverviewData['products'] 
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <CardHead
             title={turnoverSort === 'turnover' ? 'Stock Turnover' : 'Units Sold'}
             subtitle="Units moved in the selected range ÷ current stock (stock level is a live snapshot)"
@@ -817,7 +817,7 @@ function ProductPerformance({ data }: { data: AnalyticsOverviewData['products'] 
       </div>
 
       {deadStock.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/50 shadow-sm">
+        <div className="rounded-xl border border-amber-200 bg-amber-50/50">
           <div className="p-5">
             <h3 className="text-sm font-bold text-amber-800 flex items-center gap-2">
               <AlertTriangle size={14} /> Dead Stock Alert — {deadStock.length} SKUs with zero sales in range
@@ -891,26 +891,26 @@ function CustomerInsights({
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Total Customers</p>
           <p className="text-2xl font-black">{kpis.totalCustomers}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Avg Lifetime Value</p>
           <p className="text-2xl font-black text-emerald-600">{kpis.totalCustomers > 0 ? fmtK(kpis.avgLifetimeValue) : '—'}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Revenue Concentration</p>
           <p className="text-2xl font-black">{concentration.top20Pct}%</p>
           <p className="text-[10px] text-muted-foreground">from top 20% ({concentration.top20Count})</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Repeat Rate</p>
           <p className="text-2xl font-black">{kpis.repeatRate}%</p>
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card shadow-sm">
+      <div className="rounded-xl border bg-card">
         <CardHead
           title="Customer Acquisition"
           subtitle={`New customers and cumulative growth per ${acqGrain}`}
@@ -952,7 +952,7 @@ function CustomerInsights({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <div className="p-5 border-b">
             <h3 className="text-sm font-bold">Buyer Engagement Tiers</h3>
             <p className="text-[11px] text-muted-foreground">Customer breakdown by purchase frequency</p>
@@ -983,7 +983,7 @@ function CustomerInsights({
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <CardHead
             title="Lifetime Value Distribution"
             subtitle={clvMetric === 'count' ? 'Customers per spend bracket' : 'Revenue per spend bracket'}
@@ -1029,7 +1029,7 @@ function CustomerInsights({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <CardHead
             title="Top Customers"
             subtitle={topSort === 'spent' ? 'Ranked by total spend' : 'Ranked by order count'}
@@ -1066,7 +1066,7 @@ function CustomerInsights({
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <div className="p-5 border-b">
             <h3 className="text-sm font-bold">Repeat Customers</h3>
             <p className="text-[11px] text-muted-foreground">Customers with 2 or more orders</p>
@@ -1094,7 +1094,7 @@ function CustomerInsights({
       </div>
 
       {sortedSegments.length > 0 && (
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <CardHead
             title="Segment Performance"
             subtitle={segMetric === 'revenue' ? 'Revenue by segment' : 'Customers by segment'}
@@ -1192,25 +1192,25 @@ function CreditRisk({ data }: { data: AnalyticsOverviewData['credit'] }) {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Outstanding</p>
           <p className="text-2xl font-black text-amber-600">{fmtK(totalOutstanding)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm border-red-200">
+        <div className="rounded-xl border bg-card p-4 border-red-200">
           <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Overdue</p>
           <p className="text-2xl font-black text-red-600">{fmtK(totalOverdue)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Cleared (All Time)</p>
           <p className="text-2xl font-black text-emerald-600">{fmtK(totalCleared)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Collection Rate</p>
           <p className="text-2xl font-black">{collectionRate}%</p>
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card shadow-sm">
+      <div className="rounded-xl border bg-card">
         <CardHead
           title="Aging Report"
           subtitle="Outstanding credit breakdown by age"
@@ -1273,7 +1273,7 @@ function CreditRisk({ data }: { data: AnalyticsOverviewData['credit'] }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <CardHead
             title="Top Debtors"
             subtitle="Customers with the largest outstanding balances"
@@ -1313,7 +1313,7 @@ function CreditRisk({ data }: { data: AnalyticsOverviewData['credit'] }) {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <CardHead
             title="Customer Credit Risk"
             subtitle={
@@ -1366,7 +1366,7 @@ function CreditRisk({ data }: { data: AnalyticsOverviewData['credit'] }) {
       </div>
 
       {collSeries.length > 0 && (
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <CardHead
             title="Collection Performance"
             subtitle={`Credits issued vs cleared per ${collGrain}`}

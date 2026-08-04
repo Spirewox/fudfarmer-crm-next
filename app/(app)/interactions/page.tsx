@@ -430,7 +430,7 @@ export default function InteractionsPage() {
           <p className="text-muted-foreground text-sm">Feedback, enquiries, and compensations in one place.</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setShowAnalytics(!showAnalytics)} className={`inline-flex items-center rounded-md text-sm font-medium border shadow-sm h-10 px-4 py-2 ${showAnalytics ? 'bg-secondary text-secondary-foreground' : 'bg-background hover:bg-accent border-input'}`}>
+          <button onClick={() => setShowAnalytics(!showAnalytics)} className={`inline-flex items-center rounded-md text-sm font-medium border h-10 px-4 py-2 ${showAnalytics ? 'bg-secondary text-secondary-foreground' : 'bg-background hover:bg-accent border-input'}`}>
             <BarChart3 size={16} className="mr-2" /> Insights
           </button>
           {can('interactions.create') && (
@@ -443,27 +443,27 @@ export default function InteractionsPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1"><TrendingUp size={14} className="text-muted-foreground" /><span className="text-[10px] font-bold uppercase text-muted-foreground">Total</span></div>
           <p className="text-2xl font-black">{kpis.totalInteractions}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1"><AlertTriangle size={14} className="text-red-500" /><span className="text-[10px] font-bold uppercase text-muted-foreground">Open Complaints</span></div>
           <p className="text-2xl font-black">{kpis.openComplaints}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1"><Mail size={14} className="text-blue-500" /><span className="text-[10px] font-bold uppercase text-muted-foreground">Open Enquiries</span></div>
           <p className="text-2xl font-black">{kpis.openEnquiries}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1"><Clock size={14} className="text-orange-500" /><span className="text-[10px] font-bold uppercase text-muted-foreground">Avg Resolution</span></div>
           <p className="text-2xl font-black">{kpis.avgResolution === '--' ? '--' : `${kpis.avgResolution}d`}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1"><SmilePlus size={14} className="text-green-500" /><span className="text-[10px] font-bold uppercase text-muted-foreground">Satisfaction</span></div>
           <p className="text-2xl font-black">{kpis.satisfactionRate}%</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1"><RefreshCw size={14} className="text-purple-500" /><span className="text-[10px] font-bold uppercase text-muted-foreground">Comp. Value</span></div>
           <p className="text-lg font-black">&#8358;{kpis.totalComps.toLocaleString()}</p>
         </div>
@@ -472,7 +472,7 @@ export default function InteractionsPage() {
       {/* Analytics Toggle */}
       {showAnalytics && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-300">
-          <div className="rounded-xl border bg-card shadow-sm h-72 flex flex-col">
+          <div className="rounded-xl border bg-card h-72 flex flex-col">
             <div className="p-4 border-b"><h4 className="font-semibold text-sm">Sentiment Breakdown</h4></div>
             <div className="flex-1 p-4">
               <ResponsiveContainer width="100%" height="100%">
@@ -484,7 +484,7 @@ export default function InteractionsPage() {
               </ResponsiveContainer>
             </div>
           </div>
-          <div className="rounded-xl border bg-card shadow-sm h-72 flex flex-col">
+          <div className="rounded-xl border bg-card h-72 flex flex-col">
             <div className="p-4 border-b"><h4 className="font-semibold text-sm">Complaints by Segment</h4></div>
             <div className="flex-1 p-4">
               <ResponsiveContainer width="100%" height="100%">
@@ -545,7 +545,7 @@ export default function InteractionsPage() {
           </div>
 
           {/* Table */}
-          <div className="rounded-md border bg-card shadow-sm overflow-hidden">
+          <div className="rounded-md border bg-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b">
@@ -620,7 +620,7 @@ export default function InteractionsPage() {
           </div>
 
           {/* Table */}
-          <div className="rounded-md border bg-card shadow-sm overflow-hidden">
+          <div className="rounded-md border bg-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b">
@@ -689,7 +689,7 @@ export default function InteractionsPage() {
           </div>
 
           {/* Table */}
-          <div className="rounded-md border bg-card shadow-sm overflow-hidden">
+          <div className="rounded-md border bg-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b">

@@ -774,7 +774,7 @@ export default function InventoryPage() {
           <div className="relative">
             <button
               onClick={() => setShowActionDropdown(!showActionDropdown)}
-              className="inline-flex items-center rounded-md text-sm font-medium border border-input bg-background h-10 px-4 py-2 shadow-sm hover:bg-accent gap-2"
+              className="inline-flex items-center rounded-md text-sm font-medium border border-input bg-background h-10 px-4 py-2 hover:bg-accent gap-2"
             >
               Actions <ChevronDown size={14} className={`transition-transform ${showActionDropdown ? 'rotate-180' : ''}`} />
             </button>
@@ -863,7 +863,7 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      <div className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
+      <div className="space-y-4 rounded-xl border bg-card p-4">
         <div className="space-y-2">
           <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
             Location
@@ -919,7 +919,7 @@ export default function InventoryPage() {
 
       {/* Sales volume + rankings */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="rounded-xl border bg-card p-4 shadow-sm lg:col-span-1">
+        <div className="rounded-xl border bg-card p-4 lg:col-span-1">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <BarChart4 size={14} className="text-primary" /> Volume Sold by Unit
           </h3>
@@ -939,7 +939,7 @@ export default function InventoryPage() {
             </ResponsiveContainer>
           </div>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <TrendingUp size={14} className="text-emerald-600" /> Top 3 Best Sellers
           </h3>
@@ -959,7 +959,7 @@ export default function InventoryPage() {
             </ul>
           )}
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <Activity size={14} className="text-orange-600" /> Top 3 Most Volatile
           </h3>
@@ -989,7 +989,7 @@ export default function InventoryPage() {
       ) : activeView === 'Products' ? (
         <div className="space-y-5">
           {/* Search & actions bar */}
-          <div className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
+          <div className="space-y-4 rounded-xl border bg-card p-4">
             <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
               Filter products
             </p>
@@ -1071,7 +1071,7 @@ export default function InventoryPage() {
           </div>
 
           {/* Products Table */}
-          <div className="rounded-md border bg-card shadow-sm">
+          <div className="rounded-md border bg-card">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="[&_tr]:border-b">
@@ -1264,7 +1264,7 @@ export default function InventoryPage() {
           </div>
 
           {/* Ledger Filters */}
-          <div className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
+          <div className="space-y-4 rounded-xl border bg-card p-4">
             <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
               Filter ledger
             </p>

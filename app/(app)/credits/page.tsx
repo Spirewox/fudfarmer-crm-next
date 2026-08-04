@@ -116,28 +116,28 @@ export default function CreditsPage() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <CreditCard size={14} className="text-red-500" />
             <p className="text-[10px] font-bold text-muted-foreground uppercase">Total Outstanding</p>
           </div>
           <p className="text-2xl font-black text-red-600">{fmt(kpis.totalOutstanding)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <AlertTriangle size={14} className="text-orange-500" />
             <p className="text-[10px] font-bold text-muted-foreground uppercase">Overdue Items</p>
           </div>
           <p className="text-2xl font-black text-orange-600">{kpis.overdueItemCount}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <Users size={14} className="text-blue-500" />
             <p className="text-[10px] font-bold text-muted-foreground uppercase">Customers w/ Credit</p>
           </div>
           <p className="text-2xl font-black text-blue-600">{kpis.customersWithCredit}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <Timer size={14} className="text-amber-500" />
             <p className="text-[10px] font-bold text-muted-foreground uppercase">Avg Days Overdue</p>
@@ -155,7 +155,7 @@ export default function CreditsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 rounded-xl border shadow-sm">
+      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 rounded-xl border">
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
@@ -192,7 +192,7 @@ export default function CreditsPage() {
       </div>
 
       {/* Customer table */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+      <div className="rounded-xl border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

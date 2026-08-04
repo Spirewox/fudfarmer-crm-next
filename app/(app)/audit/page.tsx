@@ -116,7 +116,7 @@ export default function AuditTrailPage() {
   };
 
   const renderBulkTable = () => (
-    <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+    <div className="rounded-xl border bg-card overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 border-b text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
@@ -177,7 +177,7 @@ export default function AuditTrailPage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div><h1 className="text-2xl font-semibold tracking-tight flex items-center gap-3"><History className="text-primary" /> System Audit Trail</h1><p className="text-muted-foreground">Traceability of all major operations and stock movements.</p></div>
 
-      <div className="flex flex-col gap-4 bg-card p-4 rounded-lg border shadow-sm">
+      <div className="flex flex-col gap-4 bg-card p-4 rounded-lg border">
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div className="relative w-full sm:w-80"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><input type="text" placeholder="Search by agent or action..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-10 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /></div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -234,7 +234,7 @@ export default function AuditTrailPage() {
       </p>
 
       {activeTab === 'all' ? (
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+        <div className="rounded-xl border bg-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 border-b text-[10px] uppercase font-bold text-muted-foreground tracking-wider"><tr><th className="h-12 px-6 text-left">Timestamp</th><th className="h-12 px-6 text-left">Agent</th><th className="h-12 px-6 text-left">Entity</th><th className="h-12 px-6 text-left">Action</th><th className="h-12 px-6 text-left">Details</th></tr></thead>

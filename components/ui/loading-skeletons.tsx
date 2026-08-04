@@ -35,7 +35,7 @@ type CardSkeletonProps = Readonly<{
 
 export function CardSkeleton({ className }: CardSkeletonProps) {
   return (
-    <div className={cn('rounded-xl border bg-card p-4 shadow-sm space-y-3', className)} aria-busy="true">
+    <div className={cn('rounded-xl border bg-card p-4 space-y-3', className)} aria-busy="true">
       <Skeleton className="h-3 w-24" />
       <Skeleton className="h-7 w-32" />
       <Skeleton className="h-3 w-20" />
@@ -51,7 +51,7 @@ type ChartSkeletonProps = Readonly<{
 export function ChartSkeleton({ className, height = 220 }: ChartSkeletonProps) {
   return (
     <div
-      className={cn('rounded-xl border bg-card p-4 shadow-sm space-y-4', className)}
+      className={cn('rounded-xl border bg-card p-4 space-y-4', className)}
       aria-busy="true"
       aria-label="Loading chart"
     >

@@ -505,7 +505,7 @@ export default function SettingsPage() {
       {/* ══════ PROFILE TAB ══════ */}
       {activeTab === 'Profile' && (
         <div className="space-y-8">
-          <form onSubmit={handleProfileUpdate} className="rounded-xl border bg-card p-6 shadow-sm space-y-4">
+          <form onSubmit={handleProfileUpdate} className="rounded-xl border bg-card p-6 space-y-4">
             <h3 className="font-bold flex items-center gap-2"><User size={18} /> Profile Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2"><label htmlFor="profile-name" className={labelCls}>Full Name</label><input id="profile-name" type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} /></div>
@@ -522,7 +522,7 @@ export default function SettingsPage() {
             <SubmitButton type="submit" loading={updateProfile.isPending} className={btnPrimary}><Save size={14} className="mr-2" /> Save Changes</SubmitButton>
           </form>
 
-          <form onSubmit={handlePasswordUpdate} className="rounded-xl border bg-card p-6 shadow-sm space-y-4">
+          <form onSubmit={handlePasswordUpdate} className="rounded-xl border bg-card p-6 space-y-4">
             <h3 className="font-bold flex items-center gap-2"><Lock size={18} /> Change Password</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2 md:col-span-2"><label htmlFor="current-password" className={labelCls}>Current Password</label><input id="current-password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className={inputCls} autoComplete="current-password" /></div>
@@ -537,7 +537,7 @@ export default function SettingsPage() {
 
       {/* ══════ USERS TAB ══════ */}
       {activeTab === 'Users' && (
-        <div className="rounded-xl border bg-card p-6 shadow-sm space-y-4">
+        <div className="rounded-xl border bg-card p-6 space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="font-bold flex items-center gap-2"><Users size={18} /> Team Members</h3>
             {canManageUsers && <button onClick={() => { setEditingUser({ role: 'Hub Manager', location: activeHubs[0]?.name || 'Lagos' }); setShowUserModal(true); }} className={btnPrimary}><Plus size={14} className="mr-2" /> Add User</button>}
@@ -570,7 +570,7 @@ export default function SettingsPage() {
       {/* ══════ HUBS TAB ══════ */}
       {activeTab === 'Hubs' && (
         <div className="space-y-5">
-          <div className="rounded-xl border bg-card p-6 shadow-sm space-y-4">
+          <div className="rounded-xl border bg-card p-6 space-y-4">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
               <div>
                 <h3 className="font-bold flex items-center gap-2"><Building2 size={18} /> Hubs &amp; RSPs</h3>
@@ -668,7 +668,7 @@ export default function SettingsPage() {
           {HAS_API ? (
         <>
           {/* Role selector */}
-          <div className="rounded-xl border bg-card p-6 shadow-sm space-y-4">
+          <div className="rounded-xl border bg-card p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-bold flex items-center gap-2"><Shield size={18} /> Roles & Permissions</h3>
@@ -692,7 +692,7 @@ export default function SettingsPage() {
                     key={role.id}
                     onClick={() => setSelectedRoleId(role.id)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${selectedRoleId === role.id
-                      ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20'
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
                       : 'border-input hover:bg-accent'
                     }`}
                   >
@@ -731,7 +731,7 @@ export default function SettingsPage() {
 
           {/* Permission groups */}
           {canManageRoles ? (
-            <div className="rounded-xl border bg-card shadow-sm divide-y">
+            <div className="rounded-xl border bg-card divide-y">
               {PERMISSION_GROUPS.map((group) => {
                 const isExpanded = expandedGroups.has(group.label);
                 const groupPerms = group.permissions.map((p) => p.key);
@@ -810,7 +810,7 @@ export default function SettingsPage() {
               })}
             </div>
           ) : (
-            <div className="rounded-xl border bg-card p-6 shadow-sm text-center">
+            <div className="rounded-xl border bg-card p-6 text-center">
               <Shield size={32} className="mx-auto text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground">You don&apos;t have permission to manage roles and permissions.</p>
             </div>
@@ -828,7 +828,7 @@ export default function SettingsPage() {
           )}
         </>
           ) : (
-            <div className="rounded-xl border bg-card p-6 shadow-sm text-center">
+            <div className="rounded-xl border bg-card p-6 text-center">
               <Shield size={32} className="mx-auto text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground">Connect to the API to manage roles and permissions.</p>
             </div>
@@ -838,7 +838,7 @@ export default function SettingsPage() {
 
       {/* ══════ PREFERENCES TAB ══════ */}
       {activeTab === 'Preferences' && (
-        <div className="rounded-xl border bg-card p-6 shadow-sm space-y-6">
+        <div className="rounded-xl border bg-card p-6 space-y-6">
           <h3 className="font-bold">Appearance</h3>
           <div className="flex items-center justify-between p-4 rounded-lg border">
             <div className="flex items-center gap-3">{darkMode ? <Moon size={20} /> : <Sun size={20} />}<div><p className="font-medium">Dark Mode</p><p className="text-xs text-muted-foreground">Toggle between light and dark theme</p></div></div>
@@ -849,7 +849,7 @@ export default function SettingsPage() {
 
       {/* ══════ DATA TAB ══════ */}
       {activeTab === 'Data' && (
-        <div className="rounded-xl border bg-card p-6 shadow-sm space-y-6">
+        <div className="rounded-xl border bg-card p-6 space-y-6">
           <h3 className="font-bold flex items-center gap-2 text-destructive"><AlertTriangle size={18} /> Danger Zone</h3>
           {canResetData ? (
             <div className="p-4 rounded-lg border border-destructive/20 bg-destructive/5">

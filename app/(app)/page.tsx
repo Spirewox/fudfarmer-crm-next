@@ -288,7 +288,7 @@ export default function DashboardPage() {
          ═══════════════════════════════════════ */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {/* Today's Revenue */}
-        <button onClick={() => router.push('/sales')} className="group relative rounded-xl border bg-card p-4 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all text-left">
+        <button onClick={() => router.push('/sales')} className="group relative rounded-xl border bg-card p-4 hover:border-emerald-300 transition-all text-left">
           <div className="flex items-center gap-2 mb-2">
             <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center">
               <Banknote size={16} className="text-emerald-600" />
@@ -301,7 +301,7 @@ export default function DashboardPage() {
         </button>
 
         {/* Total Outstanding */}
-        <button onClick={() => router.push('/credits')} className="group relative rounded-xl border bg-card p-4 shadow-sm hover:shadow-md hover:border-amber-300 transition-all text-left">
+        <button onClick={() => router.push('/credits')} className="group relative rounded-xl border bg-card p-4 hover:border-amber-300 transition-all text-left">
           <div className="flex items-center gap-2 mb-2">
             <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center">
               <Wallet size={16} className="text-amber-600" />
@@ -313,7 +313,7 @@ export default function DashboardPage() {
         </button>
 
         {/* Overdue */}
-        <button onClick={() => router.push('/credits')} className={`group relative rounded-xl border p-4 shadow-sm hover:shadow-md transition-all text-left ${tracker.overdueCredits > 0 ? 'bg-red-50/50 border-red-200 hover:border-red-400' : 'bg-card hover:border-muted-foreground/30'}`}>
+        <button onClick={() => router.push('/credits')} className={`group relative rounded-xl border p-4 transition-all text-left ${tracker.overdueCredits > 0 ? 'bg-red-50/50 border-red-200 hover:border-red-400' : 'bg-card hover:border-muted-foreground/30'}`}>
           <div className="flex items-center gap-2 mb-2">
             <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${tracker.overdueCredits > 0 ? 'bg-red-100' : 'bg-muted'}`}>
               <CreditCard size={16} className={tracker.overdueCredits > 0 ? 'text-red-600' : 'text-muted-foreground'} />
@@ -325,7 +325,7 @@ export default function DashboardPage() {
         </button>
 
         {/* Stock Alerts */}
-        <button onClick={() => router.push('/inventory')} className={`group relative rounded-xl border p-4 shadow-sm hover:shadow-md transition-all text-left ${tracker.stockAlerts > 0 ? 'bg-amber-50/50 border-amber-200 hover:border-amber-400' : 'bg-card hover:border-muted-foreground/30'}`}>
+        <button onClick={() => router.push('/inventory')} className={`group relative rounded-xl border p-4 transition-all text-left ${tracker.stockAlerts > 0 ? 'bg-amber-50/50 border-amber-200 hover:border-amber-400' : 'bg-card hover:border-muted-foreground/30'}`}>
           <div className="flex items-center gap-2 mb-2">
             <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${tracker.stockAlerts > 0 ? 'bg-amber-100' : 'bg-muted'}`}>
               <Package size={16} className={tracker.stockAlerts > 0 ? 'text-amber-600' : 'text-muted-foreground'} />
@@ -338,7 +338,7 @@ export default function DashboardPage() {
         </button>
 
         {/* Open Tickets */}
-        <button onClick={() => router.push('/interactions')} className={`group relative rounded-xl border p-4 shadow-sm hover:shadow-md transition-all text-left ${tracker.openTickets > 0 ? 'bg-blue-50/50 border-blue-200 hover:border-blue-400' : 'bg-card hover:border-muted-foreground/30'}`}>
+        <button onClick={() => router.push('/interactions')} className={`group relative rounded-xl border p-4 transition-all text-left ${tracker.openTickets > 0 ? 'bg-blue-50/50 border-blue-200 hover:border-blue-400' : 'bg-card hover:border-muted-foreground/30'}`}>
           <div className="flex items-center gap-2 mb-2">
             <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${tracker.openTickets > 0 ? 'bg-blue-100' : 'bg-muted'}`}>
               <MessageSquare size={16} className={tracker.openTickets > 0 ? 'text-blue-600' : 'text-muted-foreground'} />
@@ -351,7 +351,7 @@ export default function DashboardPage() {
         </button>
 
         {/* Customers */}
-        <button onClick={() => router.push('/customers')} className="group relative rounded-xl border bg-card p-4 shadow-sm hover:shadow-md hover:border-purple-300 transition-all text-left">
+        <button onClick={() => router.push('/customers')} className="group relative rounded-xl border bg-card p-4 hover:border-purple-300 transition-all text-left">
           <div className="flex items-center gap-2 mb-2">
             <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center">
               <Users size={16} className="text-purple-600" />
@@ -367,34 +367,34 @@ export default function DashboardPage() {
       {/* ═══════════════════════════════════════
            QUICK ACTIONS
          ═══════════════════════════════════════ */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mb-1">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 mb-2">
         <span className="text-[10px] font-bold text-muted-foreground uppercase shrink-0 mr-1">Quick Actions</span>
         {can('sales.create') && (
-          <button onClick={() => router.push('/sales')} className="inline-flex items-center gap-1.5 shrink-0 rounded-lg border bg-card px-3.5 py-2 text-xs font-semibold shadow-sm hover:shadow-md hover:border-emerald-300 hover:bg-emerald-50 transition-all">
+          <button onClick={() => router.push('/sales')} className="inline-flex items-center gap-1.5 shrink-0 rounded-lg border bg-card px-3.5 py-2 text-xs font-semibold hover:border-emerald-300 hover:bg-emerald-50 transition-all">
             <Receipt size={14} className="text-emerald-600" /> Record Sale
           </button>
         )}
         {can('customers.create') && (
-          <button onClick={() => router.push('/customers')} className="inline-flex items-center gap-1.5 shrink-0 rounded-lg border bg-card px-3.5 py-2 text-xs font-semibold shadow-sm hover:shadow-md hover:border-purple-300 hover:bg-purple-50 transition-all">
+          <button onClick={() => router.push('/customers')} className="inline-flex items-center gap-1.5 shrink-0 rounded-lg border bg-card px-3.5 py-2 text-xs font-semibold hover:border-purple-300 hover:bg-purple-50 transition-all">
             <UserPlus size={14} className="text-purple-600" /> Add Customer
           </button>
         )}
         {can('inventory.create') && (
-          <button onClick={() => router.push('/inventory')} className="inline-flex items-center gap-1.5 shrink-0 rounded-lg border bg-card px-3.5 py-2 text-xs font-semibold shadow-sm hover:shadow-md hover:border-blue-300 hover:bg-blue-50 transition-all">
+          <button onClick={() => router.push('/inventory')} className="inline-flex items-center gap-1.5 shrink-0 rounded-lg border bg-card px-3.5 py-2 text-xs font-semibold hover:border-blue-300 hover:bg-blue-50 transition-all">
             <PackagePlus size={14} className="text-blue-600" /> Add Stock
           </button>
         )}
         {can('credits.view') && (
-          <button onClick={() => router.push('/credits')} className="inline-flex items-center gap-1.5 shrink-0 rounded-lg border bg-card px-3.5 py-2 text-xs font-semibold shadow-sm hover:shadow-md hover:border-amber-300 hover:bg-amber-50 transition-all">
+          <button onClick={() => router.push('/credits')} className="inline-flex items-center gap-1.5 shrink-0 rounded-lg border bg-card px-3.5 py-2 text-xs font-semibold hover:border-amber-300 hover:bg-amber-50 transition-all">
             <Wallet size={14} className="text-amber-600" /> Manage Credits
           </button>
         )}
         {can('interactions.create') && (
-          <button onClick={() => router.push('/interactions')} className="inline-flex items-center gap-1.5 shrink-0 rounded-lg border bg-card px-3.5 py-2 text-xs font-semibold shadow-sm hover:shadow-md hover:border-sky-300 hover:bg-sky-50 transition-all">
+          <button onClick={() => router.push('/interactions')} className="inline-flex items-center gap-1.5 shrink-0 rounded-lg border bg-card px-3.5 py-2 text-xs font-semibold hover:border-sky-300 hover:bg-sky-50 transition-all">
             <MessageSquare size={14} className="text-sky-600" /> Log Feedback
           </button>
         )}
-        <button onClick={() => router.push('/analytics')} className="inline-flex items-center gap-1.5 shrink-0 rounded-lg border bg-card px-3.5 py-2 text-xs font-semibold shadow-sm hover:shadow-md hover:border-indigo-300 hover:bg-indigo-50 transition-all">
+        <button onClick={() => router.push('/analytics')} className="inline-flex items-center gap-1.5 shrink-0 rounded-lg border bg-card px-3.5 py-2 text-xs font-semibold hover:border-indigo-300 hover:bg-indigo-50 transition-all">
           <BarChart3 size={14} className="text-indigo-600" /> Analytics
         </button>
       </div>
@@ -402,7 +402,7 @@ export default function DashboardPage() {
       {/* ═══════════════════════════════════════
            1. SALES
          ═══════════════════════════════════════ */}
-      <div className="rounded-xl border bg-card shadow-sm">
+      <div className="rounded-xl border bg-card">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-5 border-b">
           <div className="flex items-center gap-2">
             <Banknote size={16} className="text-emerald-600" />
@@ -535,7 +535,7 @@ export default function DashboardPage() {
       {/* ═══════════════════════════════════════
            2. REVENUE PER CATEGORY
          ═══════════════════════════════════════ */}
-      <div className="rounded-xl border bg-card shadow-sm">
+      <div className="rounded-xl border bg-card">
         <div className="flex items-center justify-between p-5 border-b">
           <div className="flex items-center gap-2">
             <Package size={16} className="text-emerald-600" />
@@ -588,7 +588,7 @@ export default function DashboardPage() {
       {/* ═══════════════════════════════════════
            3. TOP CUSTOMERS
          ═══════════════════════════════════════ */}
-      <div className="rounded-xl border bg-card shadow-sm">
+      <div className="rounded-xl border bg-card">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border-b gap-3">
           <div className="flex items-center gap-2">
             <Users size={16} className="text-blue-600" />
@@ -682,7 +682,7 @@ export default function DashboardPage() {
          ═══════════════════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* INVENTORY */}
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <div className="flex items-center justify-between p-5 border-b">
             <div className="flex items-center gap-2">
               <Package size={16} className="text-primary" />
@@ -757,7 +757,7 @@ export default function DashboardPage() {
         </div>
 
         {/* CREDIT BOOK */}
-        <div className="rounded-xl border bg-card shadow-sm">
+        <div className="rounded-xl border bg-card">
           <div className="flex items-center justify-between p-5 border-b">
             <div className="flex items-center gap-2">
               <CreditCard size={16} className={creditData.overdue > 0 ? 'text-red-600' : 'text-emerald-600'} />

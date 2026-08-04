@@ -470,23 +470,23 @@ export default function SuppliersPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1"><Truck size={14} className="text-muted-foreground" /><span className="text-[10px] font-bold uppercase text-muted-foreground">Suppliers</span></div>
           <p className="text-2xl font-black">{kpis.total}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1"><ShieldCheck size={14} className="text-green-600" /><span className="text-[10px] font-bold uppercase text-muted-foreground">Active</span></div>
           <p className="text-2xl font-black">{kpis.active}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1"><CircleDollarSign size={14} className="text-emerald-600" /><span className="text-[10px] font-bold uppercase text-muted-foreground">Total Spend</span></div>
           <p className="text-lg font-black">{fmt(kpis.totalSpend)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1"><AlertTriangle size={14} className="text-red-600" /><span className="text-[10px] font-bold uppercase text-muted-foreground">Open Issues</span></div>
           <p className="text-2xl font-black">{kpis.openIssues}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1"><Clock size={14} className="text-blue-600" /><span className="text-[10px] font-bold uppercase text-muted-foreground">Avg Lead</span></div>
           <p className="text-2xl font-black">{kpis.avgLead}<span className="text-sm font-medium text-muted-foreground">d</span></p>
         </div>
@@ -494,7 +494,7 @@ export default function SuppliersPage() {
 
       {/* Top suppliers by spend */}
       {topBySpend.length > 0 && (
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-3"><TrendingUp size={15} className="text-primary" /><h3 className="text-sm font-semibold">Top Suppliers by Spend</h3></div>
           <div className="space-y-2.5">
             {topBySpend.map(({ s, spend }) => (
@@ -513,7 +513,7 @@ export default function SuppliersPage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center bg-card p-4 rounded-lg border shadow-sm">
+      <div className="flex flex-col sm:flex-row gap-3 items-center bg-card p-4 rounded-lg border">
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <input type="text" placeholder="Search name, business, contact..." className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-9 text-sm focus:outline-none focus:ring-2 focus:ring-ring" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />

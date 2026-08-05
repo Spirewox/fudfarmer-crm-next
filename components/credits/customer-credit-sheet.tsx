@@ -6,6 +6,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import {
   useCustomerCredits,
   useRecordPayment,
+  useGeneralCreditPayment,
   useExtendDueDate,
   useFlagCredit,
 } from '@/hooks/use-queries';
@@ -46,11 +47,13 @@ export function CustomerCreditSheet({ customer, open, onOpenChange }: CustomerCr
   const { can } = usePermissions();
   const { data: credits = [], isLoading } = useCustomerCredits(customer?.customerId ?? null);
   const recordPayment = useRecordPayment();
+  const generalPayment = useGeneralCreditPayment();
   const extendDueDate = useExtendDueDate();
   const flagCredit = useFlagCredit();
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [paymentCredit, setPaymentCredit] = useState<SaleCreditRecord | null>(null);
+  const [showGeneralPayment, setShowGeneralPayment] = useState(false);
   const [extendCredit, setExtendCredit] = useState<SaleCreditRecord | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Transfer' | 'POS'>('Transfer');
@@ -60,6 +63,14 @@ export function CustomerCreditSheet({ customer, open, onOpenChange }: CustomerCr
 
   const openItems = credits.filter((c) => c.status !== 'Clear' && c.status !== 'Voided');
   const clearedItems = credits.filter((c) => c.status === 'Clear' || c.status === 'Voided');
+  const totalOutstanding =
+    customer?.totalOutstanding ??
+    openItems.reduce((sum, c) => sum + c.amountOwed, 0);
+
+  const creditProductLabel = (credit: SaleCreditRecord) =>
+    credit.sale.productName ||
+    credit.sale.productDetails ||
+    'Credit sale';
 
   const handleRecordPayment = async () => {
     if (!paymentCredit || !user) return;
@@ -83,6 +94,37 @@ export function CustomerCreditSheet({ customer, open, onOpenChange }: CustomerCr
       setPaymentNote('');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Payment failed.');
+    }
+  };
+
+  const handleGeneralPayment = async () => {
+    if (!customer || !user) return;
+    const amount = parseFloat(paymentAmount) || 0;
+    if (amount <= 0 || amount > totalOutstanding) {
+      toast.error(
+        totalOutstanding > 0
+          ? `Enter an amount between 0 and ${fmt(totalOutstanding)}.`
+          : 'No outstanding credit to repay.',
+      );
+      return;
+    }
+    try {
+      const result = await generalPayment.mutateAsync({
+        customerId: customer.customerId,
+        amount,
+        method: paymentMethod,
+        note: paymentNote || undefined,
+      });
+      const cleared = result.allocations.filter((a) => a.balance_after === 0).length;
+      toast.success(
+        `${fmt(amount)} applied across ${result.allocations.length} credit${result.allocations.length !== 1 ? 's' : ''}` +
+          (cleared ? ` (${cleared} cleared).` : '.'),
+      );
+      setShowGeneralPayment(false);
+      setPaymentAmount('');
+      setPaymentNote('');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'General payment failed.');
     }
   };
 
@@ -126,7 +168,7 @@ export function CustomerCreditSheet({ customer, open, onOpenChange }: CustomerCr
               <SheetHeader className="border-b p-5 pr-12">
                 <SheetTitle className="text-lg">{customer.customerName}</SheetTitle>
                 <div className="space-y-2 pt-1">
-                  <p className="text-2xl font-black text-red-600">{fmt(customer.totalOutstanding)}</p>
+                  <p className="text-2xl font-black text-red-600">{fmt(totalOutstanding)}</p>
                   <div className="flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full bg-muted px-2.5 py-0.5 font-medium">
                       {customer.openCreditCount} open credit{customer.openCreditCount !== 1 ? 's' : ''}
@@ -142,6 +184,20 @@ export function CustomerCreditSheet({ customer, open, onOpenChange }: CustomerCr
                       </span>
                     )}
                   </div>
+                  {can('credits.record_payment') && totalOutstanding > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowGeneralPayment(true);
+                        setPaymentAmount('');
+                        setPaymentNote('');
+                        setPaymentMethod('Transfer');
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-md text-xs font-medium bg-primary text-primary-foreground h-8 px-3 mt-1"
+                    >
+                      <Wallet size={12} /> General repayment
+                    </button>
+                  )}
                 </div>
               </SheetHeader>
 
@@ -218,7 +274,7 @@ export function CustomerCreditSheet({ customer, open, onOpenChange }: CustomerCr
               <div>
                 <h3 className="font-bold">Record Payment</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Sale {paymentCredit.sale.id} · {fmt(paymentCredit.amountOwed)} outstanding
+                  {creditProductLabel(paymentCredit)} · {fmt(paymentCredit.amountOwed)} outstanding
                 </p>
               </div>
               <button onClick={() => setPaymentCredit(null)} className="text-muted-foreground hover:text-foreground">
@@ -277,6 +333,96 @@ export function CustomerCreditSheet({ customer, open, onOpenChange }: CustomerCr
               </SubmitButton>
               <button
                 onClick={() => setPaymentCredit(null)}
+                className="inline-flex items-center rounded-md text-sm font-medium border h-9 px-4 ml-auto hover:bg-accent"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* General repayment modal */}
+      {showGeneralPayment && customer && (
+        <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-xl border bg-card shadow-xl">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <div>
+                <h3 className="font-bold">General repayment</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {customer.customerName} · {fmt(totalOutstanding)} total outstanding
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Applied oldest due first across open credits until the amount is used.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowGeneralPayment(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-sm font-medium">Amount</label>
+                <div className="relative mt-1.5">
+                  <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">{fmt(0).charAt(0)}</span>
+                  <input
+                    type="number"
+                    value={paymentAmount}
+                    max={totalOutstanding}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background pl-7 pr-3 text-sm font-bold"
+                    placeholder="0"
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="text-[11px] text-primary font-medium mt-1.5 hover:underline"
+                  onClick={() => setPaymentAmount(String(totalOutstanding))}
+                >
+                  Pay full outstanding ({fmt(totalOutstanding)})
+                </button>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Method</label>
+                <div className="flex gap-2 mt-1.5">
+                  {(['Cash', 'Transfer', 'POS'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setPaymentMethod(m)}
+                      className={`flex-1 py-2 rounded-md text-xs font-medium border transition-colors ${
+                        paymentMethod === m ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Note <span className="text-muted-foreground font-normal">(optional)</span></label>
+                <input
+                  type="text"
+                  value={paymentNote}
+                  onChange={(e) => setPaymentNote(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 mt-1.5 text-sm"
+                  placeholder="e.g. Bank transfer ref"
+                />
+              </div>
+            </div>
+            <div className="border-t px-5 py-3 flex gap-2">
+              <SubmitButton
+                onClick={handleGeneralPayment}
+                loading={generalPayment.isPending}
+                className="gap-2"
+              >
+                <Wallet size={14} /> Apply repayment
+              </SubmitButton>
+              <button
+                onClick={() => setShowGeneralPayment(false)}
                 className="inline-flex items-center rounded-md text-sm font-medium border h-9 px-4 ml-auto hover:bg-accent"
               >
                 Cancel
@@ -407,7 +553,9 @@ function CreditItemCard({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-mono text-muted-foreground">{credit.sale.id}</span>
+              <span className="text-sm font-bold truncate">
+                {credit.sale.productName || credit.sale.productDetails || 'Credit sale'}
+              </span>
               <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${statusBadgeClass(credit.status)}`}>
                 {credit.status}
               </span>
@@ -418,7 +566,11 @@ function CreditItemCard({
               )}
               {credit.flagged && <Flag size={12} className="text-orange-500" />}
             </div>
-            <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{credit.sale.productDetails}</p>
+            {(credit.sale.quantity != null || credit.sale.unit) && (
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                {[credit.sale.quantity, credit.sale.unit].filter(Boolean).join(' ')}
+              </p>
+            )}
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-2 text-[11px] text-muted-foreground">
               <span>Sale {formatDate(credit.sale.date)} · {fmt(credit.sale.amount)}</span>
               <span>{credit.sale.paymentMode}</span>

@@ -83,6 +83,11 @@ export interface ApiLinkedSale {
   amount: number;
   payment_mode: string;
   product_details?: string;
+  item?: {
+    product_name?: string;
+    quantity?: number;
+    unit?: string;
+  };
 }
 
 export interface ApiCreditRecord {

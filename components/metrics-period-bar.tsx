@@ -26,21 +26,38 @@ function utcToday(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Trailing 7 UTC days including today; month = calendar month start → today. */
+/** Daily=today; Weekly=last 8 days; Monthly=last 30 days; All=unbounded. */
 export function getMetricsDateRange(preset: MetricsPeriodPreset): { from: string; to: string } {
   const to = utcToday();
   if (preset === 'all') return { from: '', to: '' };
   if (preset === 'today') return { from: to, to };
   if (preset === 'week') {
     const d = new Date(`${to}T00:00:00.000Z`);
-    d.setUTCDate(d.getUTCDate() - 6);
+    d.setUTCDate(d.getUTCDate() - 7);
     return { from: d.toISOString().slice(0, 10), to };
   }
-  const now = new Date(`${to}T00:00:00.000Z`);
-  return {
-    from: `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-01`,
-    to,
-  };
+  const d = new Date(`${to}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() - 29);
+  return { from: d.toISOString().slice(0, 10), to };
+}
+
+export function describeMetricsPeriod(
+  period: Pick<MetricsPeriodState, 'preset' | 'isCustom' | 'dateFrom' | 'dateTo'>,
+): string {
+  if (period.isCustom) {
+    return `Custom — from ${period.dateFrom} to ${period.dateTo}`;
+  }
+  const range = getMetricsDateRange(period.preset);
+  if (period.preset === 'today') {
+    return `Daily — today (${range.to})`;
+  }
+  if (period.preset === 'week') {
+    return `Weekly — last 8 days from ${range.from} to ${range.to}`;
+  }
+  if (period.preset === 'month') {
+    return `Monthly — last 30 days from ${range.from} to ${range.to}`;
+  }
+  return 'All Time — all available periods';
 }
 
 export function useMetricsPeriod(
@@ -113,9 +130,7 @@ export function MetricsPeriodBar({
   className = '',
   hint,
 }: Readonly<MetricsPeriodBarProps>) {
-  const activeLabel = period.isCustom
-    ? `${period.dateFrom} → ${period.dateTo}`
-    : PRESETS.find((p) => p.key === period.preset)?.label ?? period.preset;
+  const activeCaption = describeMetricsPeriod(period);
 
   return (
     <div className={`flex flex-col gap-3 ${className}`.trim()}>
@@ -178,7 +193,8 @@ export function MetricsPeriodBar({
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
         <span>
-          Active range: <span className="font-semibold text-foreground">{activeLabel}</span>
+          Active range:{' '}
+          <span className="font-semibold text-foreground">{activeCaption}</span>
         </span>
         {hint && <span>{hint}</span>}
         {period.rangeError && (

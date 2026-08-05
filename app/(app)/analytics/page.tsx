@@ -1,11 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAnalyticsOverview } from '@/hooks/use-queries';
 import { useHubScopeFilter } from '@/hooks/use-hub-scope';
 import { HubScopeFilterBar } from '@/components/hub-scope-filter';
-import { MetricsPeriodBar, useMetricsPeriod } from '@/components/metrics-period-bar';
+import {
+  MetricsPeriodBar,
+  useMetricsPeriod,
+  type MetricsPeriodPreset,
+} from '@/components/metrics-period-bar';
 import { HAS_API } from '@/lib/require-api';
 import type { AnalyticsOverviewData } from '@/types/api';
 import {
@@ -37,8 +41,55 @@ const CAT_COLORS = PRODUCT_CATEGORY_COLORS;
 
 type AnalyticsTab = 'sales' | 'products' | 'customers' | 'credit';
 
+type PrimaryScope = {
+  preset: MetricsPeriodPreset;
+  isCustom: boolean;
+};
+
+type GrainOption = [string, string];
+
+/** Card grains stricter than primary (All/Custom keep all). */
+function revenueGrainOptions(scope: PrimaryScope): GrainOption[] {
+  if (scope.isCustom || scope.preset === 'all') {
+    return [
+      ['day', 'Daily'],
+      ['week', 'Weekly'],
+      ['month', 'Monthly'],
+    ];
+  }
+  if (scope.preset === 'month') {
+    return [
+      ['day', 'Daily'],
+      ['week', 'Weekly'],
+    ];
+  }
+  if (scope.preset === 'week') {
+    return [['day', 'Daily']];
+  }
+  return [];
+}
+
+function weekMonthGrainOptions(scope: PrimaryScope): GrainOption[] {
+  if (scope.isCustom || scope.preset === 'all') {
+    return [
+      ['week', 'Weekly'],
+      ['month', 'Monthly'],
+    ];
+  }
+  if (scope.preset === 'month') {
+    return [['week', 'Weekly']];
+  }
+  return [];
+}
+
+function coarsestOptionKey(options: GrainOption[]): string | null {
+  if (!options.length) return null;
+  return options[options.length - 1][0];
+}
+
 /* Reusable per-card segmented filter (secondary — operates on parent-scoped payload) */
-function Seg({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: [string, string][] }) {
+function Seg({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: GrainOption[] }) {
+  if (!options.length) return null;
   return (
     <div className="flex items-center gap-0.5 bg-muted/40 p-0.5 rounded-lg border shrink-0">
       {options.map(([key, label]) => (
@@ -146,10 +197,26 @@ export default function AnalyticsPage() {
             ))}
           </div>
 
-          {tab === 'sales' && <SalesAnalysis data={overview.sales} />}
+          {tab === 'sales' && (
+            <SalesAnalysis
+              data={overview.sales}
+              primary={{ preset: metricsPeriod.preset, isCustom: metricsPeriod.isCustom }}
+            />
+          )}
           {tab === 'products' && <ProductPerformance data={overview.products} />}
-          {tab === 'customers' && <CustomerInsights data={overview.customers} router={router} />}
-          {tab === 'credit' && <CreditRisk data={overview.credit} />}
+          {tab === 'customers' && (
+            <CustomerInsights
+              data={overview.customers}
+              router={router}
+              primary={{ preset: metricsPeriod.preset, isCustom: metricsPeriod.isCustom }}
+            />
+          )}
+          {tab === 'credit' && (
+            <CreditRisk
+              data={overview.credit}
+              primary={{ preset: metricsPeriod.preset, isCustom: metricsPeriod.isCustom }}
+            />
+          )}
         </>
       )}
     </div>
@@ -159,7 +226,13 @@ export default function AnalyticsPage() {
 /* ═══════════════════════════════════════════════════════
    SALES ANALYSIS TAB
    ═══════════════════════════════════════════════════════ */
-function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
+function SalesAnalysis({
+  data,
+  primary,
+}: {
+  data: AnalyticsOverviewData['sales'];
+  primary: PrimaryScope;
+}) {
   const {
     monthlyTrend = [],
     weeklyTrend = [],
@@ -175,13 +248,42 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
     totalRevenue,
   } = data;
 
-  const [grain, setGrain] = useState<'day' | 'week' | 'month'>('month');
+  const grainOptions = useMemo(() => revenueGrainOptions(primary), [primary.isCustom, primary.preset]);
+  const aovOptions = useMemo(() => weekMonthGrainOptions(primary), [primary.isCustom, primary.preset]);
+
+  const [grain, setGrain] = useState<'day' | 'week' | 'month'>(
+    () => (coarsestOptionKey(revenueGrainOptions(primary)) as 'day' | 'week' | 'month') ?? 'month',
+  );
   const [drillMonth, setDrillMonth] = useState<string | null>(null);
   const [dowMetric, setDowMetric] = useState<'avg' | 'total' | 'orders'>('avg');
-  const [aovGrain, setAovGrain] = useState<'week' | 'month'>('month');
+  const [aovGrain, setAovGrain] = useState<'week' | 'month'>(
+    () => (coarsestOptionKey(weekMonthGrainOptions(primary)) as 'week' | 'month') ?? 'month',
+  );
   const [chanMetric, setChanMetric] = useState<'revenue' | 'count'>('revenue');
   const [pmMetric, setPmMetric] = useState<'value' | 'count'>('value');
   const [ptMetric, setPtMetric] = useState<'value' | 'count'>('value');
+
+  useEffect(() => {
+    const next = coarsestOptionKey(grainOptions) as 'day' | 'week' | 'month' | null;
+    if (!next) {
+      setDrillMonth(null);
+      return;
+    }
+    if (!grainOptions.some(([k]) => k === grain)) {
+      setGrain(next);
+    }
+    if (!grainOptions.some(([k]) => k === 'month')) {
+      setDrillMonth(null);
+    }
+  }, [grainOptions, grain]);
+
+  useEffect(() => {
+    const next = coarsestOptionKey(aovOptions) as 'week' | 'month' | null;
+    if (!next) return;
+    if (!aovOptions.some(([k]) => k === aovGrain)) {
+      setAovGrain(next);
+    }
+  }, [aovOptions, aovGrain]);
 
   const effGrain: 'day' | 'week' | 'month' = drillMonth ? 'day' : grain;
 
@@ -299,15 +401,11 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
                 : `Revenue per ${effGrain}`
           }
           control={
-            !drillMonth ? (
+            !drillMonth && grainOptions.length > 0 ? (
               <Seg
                 value={grain}
                 onChange={(v) => setGrain(v as 'day' | 'week' | 'month')}
-                options={[
-                  ['day', 'Daily'],
-                  ['week', 'Weekly'],
-                  ['month', 'Monthly'],
-                ]}
+                options={grainOptions}
               />
             ) : undefined
           }
@@ -389,14 +487,13 @@ function SalesAnalysis({ data }: { data: AnalyticsOverviewData['sales'] }) {
             title="Average Order Value Trend"
             subtitle={`Average ticket size per ${aovGrain}`}
             control={
-              <Seg
-                value={aovGrain}
-                onChange={(v) => setAovGrain(v as 'week' | 'month')}
-                options={[
-                  ['week', 'Weekly'],
-                  ['month', 'Monthly'],
-                ]}
-              />
+              aovOptions.length > 0 ? (
+                <Seg
+                  value={aovGrain}
+                  onChange={(v) => setAovGrain(v as 'week' | 'month')}
+                  options={aovOptions}
+                />
+              ) : undefined
             }
           />
           <div className="p-5 h-[260px]">
@@ -843,9 +940,11 @@ function ProductPerformance({ data }: { data: AnalyticsOverviewData['products'] 
 function CustomerInsights({
   data,
   router,
+  primary,
 }: {
   data: AnalyticsOverviewData['customers'];
   router: ReturnType<typeof useRouter>;
+  primary: PrimaryScope;
 }) {
   const {
     kpis,
@@ -859,10 +958,22 @@ function CustomerInsights({
     segmentData = [],
   } = data;
 
-  const [acqGrain, setAcqGrain] = useState<'week' | 'month'>('month');
+  const [acqGrain, setAcqGrain] = useState<'week' | 'month'>(
+    () => (coarsestOptionKey(weekMonthGrainOptions(primary)) as 'week' | 'month') ?? 'month',
+  );
   const [clvMetric, setClvMetric] = useState<'count' | 'revenue'>('count');
   const [topSort, setTopSort] = useState<'spent' | 'orders'>('spent');
   const [segMetric, setSegMetric] = useState<'revenue' | 'customers'>('revenue');
+
+  const acqOptions = useMemo(() => weekMonthGrainOptions(primary), [primary.isCustom, primary.preset]);
+
+  useEffect(() => {
+    const next = coarsestOptionKey(acqOptions) as 'week' | 'month' | null;
+    if (!next) return;
+    if (!acqOptions.some(([k]) => k === acqGrain)) {
+      setAcqGrain(next);
+    }
+  }, [acqOptions, acqGrain]);
 
   const acqSeries = acqGrain === 'week' ? acquisitionWeeklyTrend : acquisitionTrend;
 
@@ -915,14 +1026,13 @@ function CustomerInsights({
           title="Customer Acquisition"
           subtitle={`New customers and cumulative growth per ${acqGrain}`}
           control={
-            <Seg
-              value={acqGrain}
-              onChange={(v) => setAcqGrain(v as 'week' | 'month')}
-              options={[
-                ['week', 'Weekly'],
-                ['month', 'Monthly'],
-              ]}
-            />
+            acqOptions.length > 0 ? (
+              <Seg
+                value={acqGrain}
+                onChange={(v) => setAcqGrain(v as 'week' | 'month')}
+                options={acqOptions}
+              />
+            ) : undefined
           }
         />
         <div className="p-5 h-[280px]">
@@ -1158,7 +1268,13 @@ function CustomerInsights({
 /* ═══════════════════════════════════════════════════════
    CREDIT & RISK TAB
    ═══════════════════════════════════════════════════════ */
-function CreditRisk({ data }: { data: AnalyticsOverviewData['credit'] }) {
+function CreditRisk({
+  data,
+  primary,
+}: {
+  data: AnalyticsOverviewData['credit'];
+  primary: PrimaryScope;
+}) {
   const {
     kpis,
     agingReport,
@@ -1172,7 +1288,19 @@ function CreditRisk({ data }: { data: AnalyticsOverviewData['credit'] }) {
   const [agingMetric, setAgingMetric] = useState<'amount' | 'count'>('amount');
   const [debtorStatus, setDebtorStatus] = useState<'all' | 'Overdue' | 'Pending'>('all');
   const [riskSort, setRiskSort] = useState<'ratio' | 'owed'>('ratio');
-  const [collGrain, setCollGrain] = useState<'week' | 'month'>('month');
+  const [collGrain, setCollGrain] = useState<'week' | 'month'>(
+    () => (coarsestOptionKey(weekMonthGrainOptions(primary)) as 'week' | 'month') ?? 'month',
+  );
+
+  const collOptions = useMemo(() => weekMonthGrainOptions(primary), [primary.isCustom, primary.preset]);
+
+  useEffect(() => {
+    const next = coarsestOptionKey(collOptions) as 'week' | 'month' | null;
+    if (!next) return;
+    if (!collOptions.some(([k]) => k === collGrain)) {
+      setCollGrain(next);
+    }
+  }, [collOptions, collGrain]);
 
   const filteredDebtors = useMemo(() => {
     if (debtorStatus === 'all') return topDebtors;
@@ -1371,14 +1499,13 @@ function CreditRisk({ data }: { data: AnalyticsOverviewData['credit'] }) {
             title="Collection Performance"
             subtitle={`Credits issued vs cleared per ${collGrain}`}
             control={
-              <Seg
-                value={collGrain}
-                onChange={(v) => setCollGrain(v as 'week' | 'month')}
-                options={[
-                  ['week', 'Weekly'],
-                  ['month', 'Monthly'],
-                ]}
-              />
+              collOptions.length > 0 ? (
+                <Seg
+                  value={collGrain}
+                  onChange={(v) => setCollGrain(v as 'week' | 'month')}
+                  options={collOptions}
+                />
+              ) : undefined
             }
           />
           <div className="p-5 h-[260px]">

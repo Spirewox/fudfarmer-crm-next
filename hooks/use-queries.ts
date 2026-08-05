@@ -1831,6 +1831,44 @@ export function useRecordPayment() {
   });
 }
 
+export function useGeneralCreditPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      customerId,
+      amount,
+      method,
+      note,
+    }: {
+      customerId: string;
+      amount: number;
+      method: 'Cash' | 'Transfer' | 'POS';
+      note?: string;
+    }) => {
+      requireApi();
+      const res = await axiosPost(
+        'credits/general-payment',
+        { customer_id: customerId, amount, method, note },
+        true,
+      ) as ApiListResponse<{
+        customer_id: string;
+        amount_paid: number;
+        allocations: { credit_id: string; amount: number; balance_after: number }[];
+        total_outstanding: number;
+        credits: ApiCreditRecord[];
+      }>;
+      return {
+        customerId: res.data.customer_id,
+        amountPaid: res.data.amount_paid,
+        allocations: res.data.allocations,
+        totalOutstanding: res.data.total_outstanding,
+        credits: (res.data.credits ?? []).map(mapCreditRecord),
+      };
+    },
+    onSuccess: () => invalidateCredits(qc),
+  });
+}
+
 export function useExtendDueDate() {
   const qc = useQueryClient();
   return useMutation({

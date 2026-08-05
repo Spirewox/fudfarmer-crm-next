@@ -28,6 +28,9 @@ export interface LinkedSale {
   amount: number;
   paymentMode: string;
   productDetails?: string;
+  productName?: string;
+  quantity?: number;
+  unit?: string;
 }
 
 /** Per-sale credit item — one credit record per credit sale */

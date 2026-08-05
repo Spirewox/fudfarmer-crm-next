@@ -27,6 +27,10 @@ export function mapCreditCustomerSummary(row: ApiCreditCustomerSummary): CreditC
 }
 
 export function mapCreditRecord(row: ApiCreditRecord): SaleCreditRecord {
+  const productName =
+    row.sale?.item?.product_name ||
+    row.sale?.product_details ||
+    undefined;
   return {
     id: row.id,
     customerId: row.customer_id,
@@ -37,7 +41,10 @@ export function mapCreditRecord(row: ApiCreditRecord): SaleCreditRecord {
           date: toDateStr(row.sale.date),
           amount: row.sale.amount,
           paymentMode: row.sale.payment_mode,
-          productDetails: row.sale.product_details,
+          productDetails: productName,
+          productName,
+          quantity: row.sale.item?.quantity,
+          unit: row.sale.item?.unit,
         }
       : {
           id: '',

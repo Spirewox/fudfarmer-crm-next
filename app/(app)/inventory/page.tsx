@@ -273,14 +273,24 @@ export default function InventoryPage() {
   }, [moveData.supplier, uniqueSuppliers]);
 
   // New product
-  const [newProduct, setNewProduct] = useState<Partial<InventoryItem>>({
+  const [newProduct, setNewProduct] = useState<Partial<InventoryItem> & {
+    purchasedDate?: string;
+    expiryDate?: string;
+  }>({
     sku: '', name: '', category: 'Fish', unitOfMeasure: 'Cartons',
     minStockLevel: 5, currentStock: 0, avgUnitCost: 0, baseSellingPrice: 0,
     location: hubScope.defaultHubName || activeHubs[0]?.name || 'Lagos',
+    purchasedDate: '',
+    expiryDate: '',
   });
 
   // Edit product
-  const [editProduct, setEditProduct] = useState<Partial<InventoryItem>>({});
+  const [editProduct, setEditProduct] = useState<Partial<InventoryItem> & {
+    purchasedDate?: string;
+    expiryDate?: string;
+  }>({});
+  const editSalesPerf = useProductSalesPerformance(editProduct.id ?? null);
+  const canEditInitialStock = editSalesPerf.data?.hasData === false;
 
   /* ──────── Computed data ──────── */
 
@@ -466,11 +476,14 @@ export default function InventoryPage() {
       category: item.category,
       unitOfMeasure: item.unitOfMeasure,
       minStockLevel: item.minStockLevel,
+      currentStock: item.currentStock,
       baseSellingPrice: item.baseSellingPrice,
       cartonPrice: item.cartonPrice,
       cartonWeight: item.cartonWeight,
       location: item.location,
       avgUnitCost: item.avgUnitCost,
+      purchasedDate: '',
+      expiryDate: '',
     });
     setShowEditModal(true);
   }, []);
@@ -505,6 +518,8 @@ export default function InventoryPage() {
       carton_weight: newProduct.cartonWeight,
       hub_id: hub?.id,
       supplier_id: newProduct.supplierId || undefined,
+      purchased_date: newProduct.purchasedDate || undefined,
+      expiry_date: newProduct.expiryDate || undefined,
     }, {
       onSuccess: () => {
         setShowAddProductModal(false);
@@ -513,6 +528,8 @@ export default function InventoryPage() {
           minStockLevel: 5, currentStock: 0, avgUnitCost: 0, baseSellingPrice: 0,
           location: user?.location || activeHubs[0]?.name || 'Lagos',
           supplierId: '',
+          purchasedDate: '',
+          expiryDate: '',
         });
         toast.success('Product created successfully.');
       },
@@ -549,6 +566,13 @@ export default function InventoryPage() {
       carton_price: editProduct.cartonPrice,
       carton_weight: editProduct.cartonWeight,
       ...(hub?.id ? { hub_id: hub.id } : {}),
+      ...(canEditInitialStock
+        ? {
+            current_stock: editProduct.currentStock ?? original.currentStock,
+            purchased_date: editProduct.purchasedDate || undefined,
+            expiry_date: editProduct.expiryDate || undefined,
+          }
+        : {}),
     }, {
       onSuccess: (updated) => {
         if (viewingDetailsItem?.id === editProduct.id) setViewingDetailsItem(updated);
@@ -1944,6 +1968,24 @@ export default function InventoryPage() {
                 <input type="number" value={newProduct.currentStock || ''} onChange={(e) => setNewProduct({ ...newProduct, currentStock: parseInt(e.target.value) || 0 })} className={inputCls} />
               </div>
               <div className="space-y-2">
+                <label className={labelCls}>Purchased date</label>
+                <input
+                  type="date"
+                  value={newProduct.purchasedDate || ''}
+                  onChange={(e) => setNewProduct({ ...newProduct, purchasedDate: e.target.value })}
+                  className={inputCls}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className={labelCls}>Expiry date</label>
+                <input
+                  type="date"
+                  value={newProduct.expiryDate || ''}
+                  onChange={(e) => setNewProduct({ ...newProduct, expiryDate: e.target.value })}
+                  className={inputCls}
+                />
+              </div>
+              <div className="space-y-2">
                 <label className={labelCls}>Avg Unit Cost (&#8358;)</label>
                 <input type="number" value={newProduct.avgUnitCost || ''} onChange={(e) => setNewProduct({ ...newProduct, avgUnitCost: parseInt(e.target.value) || 0 })} className={inputCls} />
               </div>
@@ -1996,11 +2038,13 @@ export default function InventoryPage() {
               </div>
             </div>
             {/* Margin warning */}
-            {newProduct.avgUnitCost && newProduct.baseSellingPrice && newProduct.avgUnitCost > newProduct.baseSellingPrice && (
+            {(newProduct.avgUnitCost ?? 0) > 0
+              && (newProduct.baseSellingPrice ?? 0) > 0
+              && (newProduct.avgUnitCost ?? 0) > (newProduct.baseSellingPrice ?? 0) ? (
               <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-center gap-2 text-sm text-amber-700">
                 <ShieldAlert size={16} /> Cost exceeds selling price — negative margin!
               </div>
-            )}
+            ) : null}
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setShowAddProductModal(false)} className={btnSecondary}>Cancel</button>
               <SubmitButton onClick={handleSaveProduct} loading={createProduct.isPending} className={btnPrimary}>Create Product</SubmitButton>
@@ -2042,6 +2086,45 @@ export default function InventoryPage() {
                 <label className={labelCls}>Min Stock Level</label>
                 <input type="number" value={editProduct.minStockLevel ?? ''} onChange={(e) => setEditProduct({ ...editProduct, minStockLevel: parseInt(e.target.value) || 0 })} className={inputCls} />
               </div>
+              {canEditInitialStock ? (
+                <>
+                  <div className="space-y-2">
+                    <label className={labelCls}>Current stock</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={editProduct.currentStock ?? ''}
+                      onChange={(e) => setEditProduct({ ...editProduct, currentStock: parseInt(e.target.value) || 0 })}
+                      className={inputCls}
+                    />
+                    <p className="text-[11px] text-muted-foreground">Editable until the first sale is recorded.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className={labelCls}>Purchased date</label>
+                    <input
+                      type="date"
+                      value={editProduct.purchasedDate || ''}
+                      onChange={(e) => setEditProduct({ ...editProduct, purchasedDate: e.target.value })}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className={labelCls}>Expiry date</label>
+                    <input
+                      type="date"
+                      value={editProduct.expiryDate || ''}
+                      onChange={(e) => setEditProduct({ ...editProduct, expiryDate: e.target.value })}
+                      className={inputCls}
+                    />
+                  </div>
+                </>
+              ) : editProduct.id && !editSalesPerf.isLoading ? (
+                <div className="space-y-2 col-span-2">
+                  <p className="text-xs text-muted-foreground">
+                    Stock is locked after sales. Current stock: {editProduct.currentStock ?? '—'}. Use stock movements to adjust.
+                  </p>
+                </div>
+              ) : null}
               <div className="space-y-2">
                 <label className={labelCls}>Location Hub</label>
                 {hubScope.canSwitchHubs ? (
@@ -2082,11 +2165,13 @@ export default function InventoryPage() {
               </div>
             </div>
             {/* Margin warning */}
-            {editProduct.avgUnitCost && editProduct.baseSellingPrice && editProduct.avgUnitCost > editProduct.baseSellingPrice && (
+            {(editProduct.avgUnitCost ?? 0) > 0
+              && (editProduct.baseSellingPrice ?? 0) > 0
+              && (editProduct.avgUnitCost ?? 0) > (editProduct.baseSellingPrice ?? 0) ? (
               <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-center gap-2 text-sm text-amber-700">
                 <ShieldAlert size={16} /> Warning: Cost exceeds selling price — negative margin!
               </div>
-            )}
+            ) : null}
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => { setShowEditModal(false); setEditProduct({}); }} className={btnSecondary}>Cancel</button>
               {can('inventory.edit') && <SubmitButton onClick={handleEditProduct} loading={updateProduct.isPending} className={btnPrimary}>Save Changes</SubmitButton>}

@@ -165,7 +165,7 @@ export default function AnalyticsPage() {
           </p>
           <MetricsPeriodBar
             period={metricsPeriod}
-            hint="Sales use sale date; customers use createdAt; credits use issue date; feedback & stock moves use their event dates. Product stock levels are a current snapshot."
+            hint="Sales and Customer Insights use sale date (acquisition = first purchase). Credits use issue date; feedback and stock moves use their event dates. Product stock levels are a current snapshot."
           />
         </div>
       </div>

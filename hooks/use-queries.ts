@@ -756,6 +756,8 @@ export function useCustomers(filters?: {
   limit?: number;
   sort_by?: 'total_orders' | 'total_spent';
   sort_dir?: 'asc' | 'desc';
+  min_orders?: number;
+  max_orders?: number;
 }, options?: { enabled?: boolean }) {
   const qc = useQueryClient();
   return useQuery({
@@ -785,6 +787,8 @@ export function useCustomers(filters?: {
         limit: filters?.limit,
         sort_by: filters?.sort_by,
         sort_dir: filters?.sort_dir,
+        min_orders: filters?.min_orders,
+        max_orders: filters?.max_orders,
       };
       const raw = await axiosGet(`customers${buildQuery(params)}`, true);
       const parsed = parseCustomerListResponse(raw);
@@ -793,6 +797,54 @@ export function useCustomers(filters?: {
         meta: parsed.meta,
         summary: parsed.summary,
       };
+    },
+  });
+}
+
+export type CustomerExportFilters = {
+  search?: string;
+  segment_id?: string;
+  segment_ids?: string[];
+  type?: string;
+  hub_id?: string;
+  period?: string;
+  date_from?: string;
+  date_to?: string;
+  sort_by?: 'total_orders' | 'total_spent';
+  sort_dir?: 'asc' | 'desc';
+  min_orders?: number;
+  max_orders?: number;
+};
+
+export function useExportCustomers() {
+  return useMutation({
+    mutationFn: async (filters?: CustomerExportFilters) => {
+      const params: Record<string, string | number | undefined> = {
+        search: filters?.search,
+        customer_type: filters?.type ? customerTypeToApi(filters.type) : undefined,
+        hub_id: filters?.hub_id,
+        segment_id: filters?.segment_id,
+        segment_ids: filters?.segment_ids?.length
+          ? filters.segment_ids.join(',')
+          : undefined,
+        period: filters?.period,
+        date_from: filters?.date_from,
+        date_to: filters?.date_to,
+        sort_by: filters?.sort_by,
+        sort_dir: filters?.sort_dir,
+        min_orders: filters?.min_orders,
+        max_orders: filters?.max_orders,
+      };
+      const buffer = await axiosGetBlob(`customers/export${buildQuery(params)}`, true);
+      const blob = new Blob([buffer], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'customers-export.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     },
   });
 }

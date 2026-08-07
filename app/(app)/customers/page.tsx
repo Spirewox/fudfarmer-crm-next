@@ -6,7 +6,7 @@ import {
   useCustomers, useCreateCustomer, useUpdateCustomer, useAgents,
   useCustomerCredits, useSales, useFeedback, useEnquiries, useCompensations, useHubs,
   useDownloadCustomerImportTemplate, useValidateCustomerImport, useImportCustomers, useSegments,
-  useCustomer,
+  useCustomer, useExportCustomers,
 } from '@/hooks/use-queries';
 import {
   Customer, CustomerType,
@@ -49,6 +49,7 @@ import {
 } from 'lucide-react';
 
 type DetailTab = 'overview' | 'purchases' | 'credit' | 'interactions';
+type OrdersFilterMode = 'all' | 'once' | 'exact' | 'min';
 
 const SEG_GROUP_COLORS: Record<string, string> = {
   Channel: 'bg-slate-100 text-slate-700 border-slate-200',
@@ -176,6 +177,8 @@ export default function CustomersPage() {
   const [segmentFilterOpen, setSegmentFilterOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'total_orders' | 'total_spent' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [ordersFilterMode, setOrdersFilterMode] = useState<OrdersFilterMode>('all');
+  const [ordersFilterCount, setOrdersFilterCount] = useState(1);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [page, setPage] = useState(1);
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -187,6 +190,70 @@ export default function CustomersPage() {
     return map;
   }, [segments]);
 
+  const ordersFilterParams = useMemo(() => {
+    if (ordersFilterMode === 'once') return { min_orders: 1, max_orders: 1 };
+    if (ordersFilterMode === 'exact') {
+      const n = Math.max(0, Math.floor(ordersFilterCount) || 0);
+      return { min_orders: n, max_orders: n };
+    }
+    if (ordersFilterMode === 'min') {
+      const n = Math.max(0, Math.floor(ordersFilterCount) || 0);
+      return { min_orders: n };
+    }
+    return {};
+  }, [ordersFilterMode, ordersFilterCount]);
+
+  const periodScoped = metricsPeriod.isCustom || metricsPeriod.preset !== 'all';
+
+  const listFilters = useMemo(
+    () => ({
+      search: debouncedSearch || undefined,
+      type: filterType === 'All' ? undefined : filterType,
+      hub_id: hubScope.hubIdForApi,
+      segment_ids: filterSegmentIds.length ? filterSegmentIds : undefined,
+      page,
+      limit: CUSTOMERS_PAGE_SIZE,
+      sort_by: sortBy ?? undefined,
+      sort_dir: sortBy ? sortDir : undefined,
+      ...ordersFilterParams,
+      ...metricsPeriod.apiParams,
+    }),
+    [
+      debouncedSearch,
+      filterType,
+      hubScope.hubIdForApi,
+      filterSegmentIds,
+      page,
+      sortBy,
+      sortDir,
+      ordersFilterParams,
+      metricsPeriod.apiParams,
+    ],
+  );
+
+  const exportFilters = useMemo(
+    () => ({
+      search: debouncedSearch || undefined,
+      type: filterType === 'All' ? undefined : filterType,
+      hub_id: hubScope.hubIdForApi,
+      segment_ids: filterSegmentIds.length ? filterSegmentIds : undefined,
+      sort_by: sortBy ?? undefined,
+      sort_dir: sortBy ? sortDir : undefined,
+      ...ordersFilterParams,
+      ...metricsPeriod.apiParams,
+    }),
+    [
+      debouncedSearch,
+      filterType,
+      hubScope.hubIdForApi,
+      filterSegmentIds,
+      sortBy,
+      sortDir,
+      ordersFilterParams,
+      metricsPeriod.apiParams,
+    ],
+  );
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
     return () => clearTimeout(timer);
@@ -194,23 +261,22 @@ export default function CustomersPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, filterType, filterSegmentIds, sortBy, sortDir, hubScope.hubIdForApi, metricsPeriod.apiParams]);
+  }, [
+    debouncedSearch,
+    filterType,
+    filterSegmentIds,
+    sortBy,
+    sortDir,
+    hubScope.hubIdForApi,
+    metricsPeriod.apiParams,
+    ordersFilterMode,
+    ordersFilterCount,
+  ]);
 
-  const { data: customerList, isLoading: customersLoading, isFetching: customersFetching } = useCustomers({
-    search: debouncedSearch || undefined,
-    type: filterType === 'All' ? undefined : filterType,
-    hub_id: hubScope.hubIdForApi,
-    segment_ids: filterSegmentIds.length ? filterSegmentIds : undefined,
-    page,
-    limit: CUSTOMERS_PAGE_SIZE,
-    sort_by: sortBy ?? undefined,
-    sort_dir: sortBy ? sortDir : undefined,
-    ...metricsPeriod.apiParams,
-  });
+  const { data: customerList, isLoading: customersLoading, isFetching: customersFetching } = useCustomers(listFilters);
   const customers = customerList?.items ?? [];
   const tableLoading = customersLoading || customersFetching;
   const customerMeta = customerList?.meta ?? { page: 1, limit: CUSTOMERS_PAGE_SIZE, total: 0, totalPages: 1 };
-  const periodScoped = metricsPeriod.isCustom || metricsPeriod.preset !== 'all';
   const kpis = customerList?.summary ?? {
     total: 0,
     b2b: 0,
@@ -239,6 +305,7 @@ export default function CustomersPage() {
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
   const downloadCustomerImportTemplate = useDownloadCustomerImportTemplate();
+  const exportCustomers = useExportCustomers();
   const validateCustomerImport = useValidateCustomerImport();
   const importCustomers = useImportCustomers();
   const customerImportInputRef = useRef<HTMLInputElement | null>(null);
@@ -668,8 +735,25 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Customers</h1>
           <p className="text-muted-foreground text-sm">Manage your client base, segments, and loyalty tiers.</p>
         </div>
-        {can('customers.create') && (
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {can('customers.view') && (
+            <button
+              type="button"
+              disabled={exportCustomers.isPending}
+              onClick={() => {
+                exportCustomers.mutate(exportFilters, {
+                  onError: (err) => toast.error(err instanceof Error ? err.message : 'Export failed'),
+                  onSuccess: () => toast.success('Customer export downloaded'),
+                });
+              }}
+              className="inline-flex items-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent h-10 px-4 py-2 disabled:opacity-50"
+            >
+              <Download size={16} className="mr-2" />
+              {exportCustomers.isPending ? 'Exporting…' : 'Export'}
+            </button>
+          )}
+          {can('customers.create') && (
+            <>
             <input
               ref={customerImportInputRef}
               type="file"
@@ -686,15 +770,20 @@ export default function CustomersPage() {
             <button onClick={() => setShowAddModal(true)} className="inline-flex items-center rounded-md text-sm font-medium bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2">
               <Plus size={16} className="mr-2" /> Add Customer
             </button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* KPI Cards */}
       <div className="space-y-3">
         <MetricsPeriodBar
           period={metricsPeriod}
-          hint="Filters the customer list and KPIs to customers who transacted in the selected range."
+          hint={
+            periodScoped
+              ? 'List shows customers who transacted in the selected range. “New in Period” counts customers whose first purchase falls in that range.'
+              : 'All time lists every matching customer. “New This Month” counts customers whose first purchase is in the current calendar month.'
+          }
         />
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
         <div className="rounded-xl border bg-card p-4">
@@ -753,6 +842,30 @@ export default function CustomersPage() {
             </select>
           </div>
           <HubScopeFilterBar scope={hubScope} />
+          <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-background">
+            <ShoppingCart size={14} className="text-muted-foreground shrink-0" />
+            <select
+              value={ordersFilterMode}
+              onChange={(e) => setOrdersFilterMode(e.target.value as OrdersFilterMode)}
+              className="bg-transparent border-none text-sm font-medium focus:outline-none"
+            >
+              <option value="all">All orders</option>
+              <option value="once">Purchased once</option>
+              <option value="exact">Exact count…</option>
+              <option value="min">At least…</option>
+            </select>
+            {(ordersFilterMode === 'exact' || ordersFilterMode === 'min') && (
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={ordersFilterCount}
+                onChange={(e) => setOrdersFilterCount(Number(e.target.value))}
+                className="w-16 h-7 rounded border border-input bg-background px-2 text-sm"
+                aria-label={ordersFilterMode === 'exact' ? 'Exact order count' : 'Minimum order count'}
+              />
+            )}
+          </div>
           {segments.length > 0 && (
             <div className="relative">
               <button

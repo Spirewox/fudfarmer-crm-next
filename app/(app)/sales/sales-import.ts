@@ -25,7 +25,12 @@ export async function validateImportFile(file: File) {
   requireApi();
   const form = new FormData();
   form.append('file', file);
-  const res = (await axiosPostForm('sales/import/validate', form, true)) as ApiListResponse<SalesImportValidateResponse>;
+  const res = (await axiosPostForm(
+    'sales/import/validate',
+    form,
+    true,
+    120_000,
+  )) as ApiListResponse<SalesImportValidateResponse>;
   return res.data;
 }
 

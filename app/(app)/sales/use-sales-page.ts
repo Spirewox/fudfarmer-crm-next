@@ -686,6 +686,16 @@ export function useSalesPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
+    if (!file.name.toLowerCase().endsWith('.xlsx')) {
+      toast.error('Please select an .xlsx Excel file.');
+      return;
+    }
+    if (file.size === 0) {
+      toast.error(
+        'This file is empty (0 bytes). If it is from Google Drive, download it first or make it available offline, then select the local copy.',
+      );
+      return;
+    }
     setShowImportModal(true);
     setImportPreview([]);
     setImportSummary(null);

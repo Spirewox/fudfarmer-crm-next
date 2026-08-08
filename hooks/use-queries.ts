@@ -1214,6 +1214,8 @@ function unwrapImportResponse<T>(response: ApiListResponse<T> | T): T {
   return response as T;
 }
 
+export const SALES_IMPORT_TIMEOUT_MS = 120_000;
+
 export function useDownloadSalesImportTemplate() {
   return useMutation({
     mutationFn: async (type: 'catalog' | 'custom' = 'catalog') => {
@@ -1238,7 +1240,12 @@ export function useValidateSalesImport() {
       requireApi();
       const form = new FormData();
       form.append('file', file);
-      const res = await axiosPostForm('sales/import/validate', form, true) as ApiListResponse<SalesImportValidateResponse> | SalesImportValidateResponse;
+      const res = await axiosPostForm(
+        'sales/import/validate',
+        form,
+        true,
+        SALES_IMPORT_TIMEOUT_MS,
+      ) as ApiListResponse<SalesImportValidateResponse> | SalesImportValidateResponse;
       return unwrapImportResponse(res);
     },
   });
@@ -1255,8 +1262,6 @@ export function useImportSales() {
     onSuccess: () => invalidateSalesImportQueries(qc),
   });
 }
-
-export const SALES_IMPORT_TIMEOUT_MS = 120_000;
 
 export async function confirmSalesImport(args: {
   validate_audit_id: string;

@@ -744,19 +744,22 @@ export function useSalesPage() {
       const result = await runChunkedSalesImport(validateAuditId, validCount, (progress) => {
         setImportProgress(progress);
       });
-      setImportResult(result);
-      setImporting(false);
-      setShowImportConfirm(false);
-      await queryClient.invalidateQueries({ queryKey: ['sales'] });
-      await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      await queryClient.invalidateQueries({ queryKey: ['dashboardMetrics'] });
-      toast.success(`Imported ${result.imported_so_far ?? result.imported} sales.`);
+      const importedCount = result.imported_so_far ?? result.imported;
+      // Close/reset before invalidateQueries so the preview + active Import
+      // button never flash while cache refreshes.
       setShowImportModal(false);
+      setShowImportConfirm(false);
+      setImporting(false);
       setImportPreview([]);
       setImportSummary(null);
       setValidateAuditId(null);
       setImportProgress(null);
       setImportResult(null);
+      setImportError(null);
+      toast.success(`Imported ${importedCount} sales.`);
+      await queryClient.invalidateQueries({ queryKey: ['sales'] });
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['dashboardMetrics'] });
     } catch (err) {
       setImporting(false);
       setShowImportConfirm(false);
